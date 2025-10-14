@@ -282,7 +282,7 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
                 onChange={(e) => setSoloBirthDate(e.target.value)}
               />
               <p className="text-sm text-muted-foreground">
-                Vous devez avoir entre 13 et 23 ans au 31 janvier 2026 (strictement inférieur à 24 ans)
+                Vous devez avoir entre 13 et 23 ans au 31 janvier 2026
               </p>
             </div>
           )}
