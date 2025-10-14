@@ -85,7 +85,7 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
       return {
         valid: false,
         age,
-        message: `Vous aurez ${age} ans au 31 janvier 2026. L'âge doit être strictement inférieur à 24 ans.`,
+        message: `Vous aurez ${age} ans au 31 janvier 2026. L'âge doit être de 23 ans maximum.`,
       }
     }
     return { valid: true, age }
@@ -118,7 +118,7 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
       return {
         valid: false,
         average,
-        message: `La moyenne d'âge du groupe est de ${average.toFixed(1)} ans au 31 janvier 2026. Elle doit être de 23 ans max.`,
+        message: `La moyenne d'âge du groupe est de ${average.toFixed(1)} ans au 31 janvier 2026. Elle doit être de 23 ans maximum.`,
       }
     }
     return { valid: true, average }
