@@ -104,7 +104,7 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
       return {
         valid: false,
         age,
-        message: `Ce membre aura ${age} ans au 31 janvier 2026. L'âge doit être strictement inférieur à 26 ans.`,
+        message: `Ce membre aura ${age} ans au 31 janvier 2026. L'âge maximum pour un membre d'un groupe est de 25 ans.`,
       }
     }
     return { valid: true, age }
@@ -118,7 +118,7 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
       return {
         valid: false,
         average,
-        message: `La moyenne d'âge du groupe est de ${average.toFixed(1)} ans au 31 janvier 2026. Elle doit être strictement inférieure à 24 ans.`,
+        message: `La moyenne d'âge du groupe est de ${average.toFixed(1)} ans au 31 janvier 2026. Elle doit être de 23 ans max.`,
       }
     }
     return { valid: true, average }
@@ -294,8 +294,8 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
           <CardHeader>
             <CardTitle>Composition du groupe</CardTitle>
             <CardDescription>
-              Tous les membres doivent avoir entre 13 et 25 ans au 31 janvier 2026 (strictement inférieur à 26 ans). La
-              moyenne d'âge du groupe doit être strictement inférieure à 24 ans.
+              Tous les membres doivent avoir entre 13 et 25 ans au 31 janvier 2026. La
+              moyenne d'âge du groupe doit être de 23 ans maximum.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
