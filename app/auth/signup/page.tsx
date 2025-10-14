@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
@@ -23,6 +24,7 @@ export default function SignUpPage() {
     phone: "",
     password: "",
     confirmPassword: "",
+    acceptedPrivacyPolicy: false,
   })
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -40,6 +42,12 @@ export default function SignUpPage() {
       return
     }
 
+    if (!formData.acceptedPrivacyPolicy) {
+      setError("Vous devez accepter la politique de confidentialité")
+      setIsLoading(false)
+      return
+    }
+
     try {
       const { data, error } = await supabase.auth.signUp({
         email: formData.email,
@@ -52,6 +60,8 @@ export default function SignUpPage() {
             city: formData.city,
             postal_code: formData.postalCode,
             phone: formData.phone,
+            accepted_privacy_policy: formData.acceptedPrivacyPolicy,
+            privacy_policy_accepted_at: new Date().toISOString(),
           },
         },
       })
@@ -71,7 +81,6 @@ export default function SignUpPage() {
           })
         } catch (emailError) {
           console.error("Failed to send welcome email:", emailError)
-          // Don't block signup if email fails
         }
       }
 
@@ -198,6 +207,25 @@ export default function SignUpPage() {
                   value={formData.confirmPassword}
                   onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                 />
+              </div>
+              <div className="flex items-start space-x-2">
+                <Checkbox
+                  id="acceptedPrivacyPolicy"
+                  checked={formData.acceptedPrivacyPolicy}
+                  onCheckedChange={(checked) => setFormData({ ...formData, acceptedPrivacyPolicy: checked as boolean })}
+                  required
+                />
+                <label htmlFor="acceptedPrivacyPolicy" className="text-sm leading-relaxed cursor-pointer">
+                  J'accepte la{" "}
+                  <Link
+                    href="/privacy"
+                    target="_blank"
+                    className="text-primary underline underline-offset-4 hover:text-primary/80"
+                  >
+                    politique de confidentialité
+                  </Link>{" "}
+                  et le traitement de mes données personnelles *
+                </label>
               </div>
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button type="submit" className="w-full" disabled={isLoading}>
