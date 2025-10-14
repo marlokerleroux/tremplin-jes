@@ -30,23 +30,24 @@ export function CookieConsentBanner() {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-black/50 backdrop-blur-sm">
-      <Card className="max-w-4xl mx-auto p-6 shadow-lg">
+      <Card className="max-w-4xl mx-auto p-6">
         <div className="flex items-start gap-4">
           <div className="flex-1 space-y-3">
             <h3 className="font-semibold text-lg">Cookies et confidentialité</h3>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Nous utilisons des cookies pour analyser le trafic du site via Vercel Analytics. Ces données nous aident à
-              améliorer votre expérience. Vous pouvez accepter ou refuser ces cookies.{" "}
+              Ce site utilise des <strong>cookies techniques</strong> (authentification, session) strictement
+              nécessaires à son fonctionnement. Nous utilisons également des cookies analytiques via Vercel Analytics
+              pour améliorer votre expérience. Vous pouvez accepter ou refuser ces cookies analytiques.{" "}
               <Link href="/privacy" className="text-primary underline hover:text-primary/80">
                 En savoir plus
               </Link>
             </p>
             <div className="flex flex-wrap gap-3">
               <Button onClick={acceptCookies} size="sm">
-                Accepter
+                Accepter les cookies analytiques
               </Button>
               <Button onClick={rejectCookies} variant="outline" size="sm">
-                Refuser
+                Refuser les cookies analytiques
               </Button>
               <Button asChild variant="ghost" size="sm">
                 <Link href="/privacy">Politique de confidentialité</Link>
