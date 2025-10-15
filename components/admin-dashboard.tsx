@@ -522,6 +522,21 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
     setIsUpdating(false)
   }
 
+  const calculateAgeAtAudition = (birthDateString: string) => {
+    const auditionDate = new Date("2026-01-31")
+    const birthDate = new Date(birthDateString)
+
+    let age = auditionDate.getFullYear() - birthDate.getFullYear()
+    const monthDiff = auditionDate.getMonth() - birthDate.getMonth()
+    const dayDiff = auditionDate.getDate() - birthDate.getDate()
+
+    if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+      age--
+    }
+
+    return age
+  }
+
   const getMinorMembers = (application: Application) => {
     const auditionDate = new Date("2026-01-31") // Assuming a fixed audition date for age calculation
     const minors: Array<{ index: number; firstName: string; lastName: string; birthDate: string }> = []
@@ -949,7 +964,9 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
                                         application.group_members[0]?.birthDate && (
                                           <p>
                                             <span className="text-muted-foreground">Date de naissance:</span>{" "}
-                                            {formatDate(application.group_members[0].birthDate)}
+                                            {formatDate(application.group_members[0].birthDate)} (
+                                            {calculateAgeAtAudition(application.group_members[0].birthDate)} ans au
+                                            31/01/2026)
                                           </p>
                                         )}
                                       <p>
@@ -974,6 +991,9 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
                                             </p>
                                             <p className="text-muted-foreground">
                                               Né(e) le {formatDate(member.birthDate)}
+                                            </p>
+                                            <p className="text-muted-foreground">
+                                              {calculateAgeAtAudition(member.birthDate)} ans au 31/01/2026
                                             </p>
                                           </div>
                                         ))}
