@@ -27,6 +27,7 @@ interface RegistrationFormProps {
 export function RegistrationForm({ userId }: RegistrationFormProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Form state
@@ -126,12 +127,19 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (isSubmitting) {
+      return
+    }
+
+    setIsSubmitting(true)
     setIsLoading(true)
     setError(null)
 
     if (!acceptedRules) {
       setError("Vous devez accepter le règlement du tremplin pour soumettre votre candidature")
       setIsLoading(false)
+      setIsSubmitting(false)
       return
     }
 
@@ -140,6 +148,7 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
       if (!validation.valid) {
         setError(validation.message!)
         setIsLoading(false)
+        setIsSubmitting(false)
         return
       }
     }
@@ -150,6 +159,7 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
         if (!member.birthDate) {
           setError(`Veuillez renseigner la date de naissance du membre ${i + 1}`)
           setIsLoading(false)
+          setIsSubmitting(false)
           return
         }
 
@@ -157,6 +167,7 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
         if (!validation.valid) {
           setError(`Membre ${i + 1} : ${validation.message}`)
           setIsLoading(false)
+          setIsSubmitting(false)
           return
         }
       }
@@ -165,6 +176,7 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
       if (!averageValidation.valid) {
         setError(averageValidation.message!)
         setIsLoading(false)
+        setIsSubmitting(false)
         return
       }
     }
@@ -194,7 +206,19 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
         status: "pending",
       })
 
-      if (insertError) throw insertError
+      if (insertError) {
+        if (insertError.code === "23505") {
+          // Unique constraint violation
+          setError(
+            "Vous avez déjà soumis une candidature. Vous ne pouvez soumettre qu'une seule candidature par édition.",
+          )
+        } else {
+          throw insertError
+        }
+        setIsLoading(false)
+        setIsSubmitting(false)
+        return
+      }
 
       try {
         const { data: profile } = await supabase
@@ -224,8 +248,8 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
       router.push("/dashboard")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Une erreur est survenue")
-    } finally {
       setIsLoading(false)
+      setIsSubmitting(false)
     }
   }
 
@@ -281,9 +305,7 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
                 value={soloBirthDate}
                 onChange={(e) => setSoloBirthDate(e.target.value)}
               />
-              <p className="text-sm text-muted-foreground">
-                Vous devez avoir entre 13 et 23 ans au 31 janvier 2026
-              </p>
+              <p className="text-sm text-muted-foreground">Vous devez avoir entre 13 et 23 ans au 31 janvier 2026</p>
             </div>
           )}
         </CardContent>
@@ -294,8 +316,8 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
           <CardHeader>
             <CardTitle>Composition du groupe</CardTitle>
             <CardDescription>
-              Tous les membres doivent avoir entre 13 et 25 ans au 31 janvier 2026. La
-              moyenne d'âge du groupe doit être de 23 ans maximum.
+              Tous les membres doivent avoir entre 13 et 25 ans au 31 janvier 2026. La moyenne d'âge du groupe doit être
+              de 23 ans maximum.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -490,33 +512,6 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
         </CardContent>
       </Card>
 
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Comment nous avez-vous connu ?</CardTitle>
-          <CardDescription>Aidez-nous à améliorer notre communication</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <Label htmlFor="howDidYouHear">Source de découverte</Label>
-          <Select value={howDidYouHear} onValueChange={setHowDidYouHear}>
-            <SelectTrigger id="howDidYouHear">
-              <SelectValue placeholder="Sélectionnez une option" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="affiche_magasin">Affiche dans un magasin</SelectItem>
-              <SelectItem value="affiche_lieu_culturel">Affiche dans un lieu culturel</SelectItem>
-              <SelectItem value="affiche_ecole">Affiche dans une école / conservatoire</SelectItem>
-              <SelectItem value="affiche_autre">Affiche dans un autre lieu</SelectItem>
-              <SelectItem value="flyer_rue">Flyer reçu dans la rue</SelectItem>
-              <SelectItem value="flyer_vehicule">Flyer sur mon véhicule</SelectItem>
-              <SelectItem value="reseaux_sociaux">Réseaux Sociaux</SelectItem>
-              <SelectItem value="bouche_a_oreilles">Bouche à oreilles</SelectItem>
-              <SelectItem value="candidat_precedent">Candidat édition précédente</SelectItem>
-              <SelectItem value="partenaire">Partenaire tremplin</SelectItem>
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
-
       <Card className="mt-6 border-2 border-primary/20">
         <CardHeader>
           <CardTitle>Règlement du tremplin</CardTitle>
@@ -559,10 +554,16 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
           </div>
         )}
         <div className="flex gap-4">
-          <Button type="button" variant="outline" onClick={() => router.push("/dashboard")} className="flex-1">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.push("/dashboard")}
+            className="flex-1"
+            disabled={isSubmitting}
+          >
             Annuler
           </Button>
-          <Button type="submit" disabled={isLoading} className="flex-1">
+          <Button type="submit" disabled={isLoading || isSubmitting} className="flex-1">
             {isLoading ? "Envoi en cours..." : "Soumettre ma candidature"}
           </Button>
         </div>
