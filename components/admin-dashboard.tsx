@@ -944,6 +944,14 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
                                         <span className="text-muted-foreground">Type:</span>{" "}
                                         {application.application_type === "solo" ? "Artiste solo" : "Groupe"}
                                       </p>
+                                      {application.application_type === "solo" &&
+                                        application.group_members &&
+                                        application.group_members[0]?.birthDate && (
+                                          <p>
+                                            <span className="text-muted-foreground">Date de naissance:</span>{" "}
+                                            {formatDate(application.group_members[0].birthDate)}
+                                          </p>
+                                        )}
                                       <p>
                                         <span className="text-muted-foreground">Genre musical:</span>{" "}
                                         {application.musical_style}
