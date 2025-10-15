@@ -27,7 +27,7 @@ export default function PrivacyPage() {
               <section>
                 <h2 className="text-xl font-semibold text-foreground mb-3">1. Responsable du traitement</h2>
                 <p className="text-muted-foreground leading-relaxed">
-                  L'Association Pass'Musique, représentée par Marlo KERLEROUX, est responsable du traitement de vos
+                  L'Association Pass'Musique, représentée par Magali QUENAON, est responsable du traitement de vos
                   données personnelles collectées via ce site.
                 </p>
                 <p className="text-muted-foreground leading-relaxed mt-2">

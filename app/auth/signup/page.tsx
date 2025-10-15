@@ -42,6 +42,16 @@ export default function SignUpPage() {
       return
     }
 
+    const brittanyPostalCodes = ["29", "35", "22", "56"]
+    const postalCodePrefix = formData.postalCode.substring(0, 2)
+    if (!brittanyPostalCodes.includes(postalCodePrefix)) {
+      setError(
+        "L'inscription au Tremplin Jeunes en Scène est réservée aux résidents bretons (codes postaux : 22, 29, 35, 56)",
+      )
+      setIsLoading(false)
+      return
+    }
+
     if (!formData.acceptedPrivacyPolicy) {
       setError("Vous devez accepter la politique de confidentialité")
       setIsLoading(false)

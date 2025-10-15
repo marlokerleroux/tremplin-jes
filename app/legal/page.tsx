@@ -28,7 +28,7 @@ export default function LegalPage() {
                   <br />
                   Tremplin Jeunes en Scène
                   <br />
-                  Responsable de la publication : Marlo KERLEROUX
+                  Responsable de la publication : Magali QUENAON
                 </p>
               </section>
 
