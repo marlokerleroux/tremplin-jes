@@ -89,6 +89,7 @@ interface Application {
   technical_sheets?: TechnicalSheet[]
   parental_authorizations?: ParentalAuthorization[]
   time_slots?: TimeSlot
+  instagram?: string // Added field
 }
 
 interface AdminDashboardProps {
@@ -523,7 +524,7 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
   }
 
   const calculateAgeAtAudition = (birthDateString: string) => {
-    const auditionDate = new Date("2026-01-31")
+    const auditionDate = new Date("2026-01-31") // Assuming a fixed audition date for age calculation
     const birthDate = new Date(birthDateString)
 
     let age = auditionDate.getFullYear() - birthDate.getFullYear()
@@ -973,6 +974,19 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
                                         <span className="text-muted-foreground">Genre musical:</span>{" "}
                                         {application.musical_style}
                                       </p>
+                                      {application.instagram && (
+                                        <p>
+                                          <span className="text-muted-foreground">Instagram:</span>{" "}
+                                          <a
+                                            href={`https://instagram.com/${application.instagram.replace("@", "")}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-primary hover:underline"
+                                          >
+                                            @{application.instagram.replace("@", "")}
+                                          </a>
+                                        </p>
+                                      )}
                                       <p>
                                         <span className="text-muted-foreground">Date d'audition préférée:</span>{" "}
                                         {formatDate(application.preferred_audition_date)}
