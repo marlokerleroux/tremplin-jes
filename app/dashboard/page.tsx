@@ -21,8 +21,14 @@ export default async function DashboardPage() {
     redirect("/auth/login")
   }
 
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle()
+
+  if (profile?.role === "admin") {
+    redirect("/admin")
+  }
+
   // Get user profile
-  const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle()
+  const { data: fullProfile } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle()
 
   const { data: application } = await supabase
     .from("applications")
@@ -173,7 +179,7 @@ export default async function DashboardPage() {
         {/* Welcome Section */}
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-indigo-900 mb-2">
-            Bonjour, {profile?.first_name} {profile?.last_name}
+            Bonjour, {fullProfile?.first_name} {fullProfile?.last_name}
           </h2>
           <p className="text-gray-700 leading-relaxed">Bienvenue sur votre espace candidat</p>
         </div>
