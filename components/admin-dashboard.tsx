@@ -903,15 +903,6 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
                                 {!allDocsPresent && (
                                   <p className="text-xs text-red-600 text-center">Documents manquants</p>
                                 )}
-                                <Button
-                                  variant="destructive"
-                                  onClick={() => updateApplicationStatus(application.id, "rejected")}
-                                  disabled={isUpdating}
-                                  className="bg-red-600 hover:bg-red-700"
-                                >
-                                  <AlertCircle className="h-4 w-4 mr-2" />
-                                  Refuser
-                                </Button>
                               </div>
                             ) : (
                               <Button
