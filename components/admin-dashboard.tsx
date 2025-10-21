@@ -527,15 +527,10 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
     const auditionDate = new Date("2026-01-31") // Assuming a fixed audition date for age calculation
     const birthDate = new Date(birthDateString)
 
-    let age = auditionDate.getFullYear() - birthDate.getFullYear()
-    const monthDiff = auditionDate.getMonth() - birthDate.getMonth()
-    const dayDiff = auditionDate.getDate() - birthDate.getDate()
+    const diffMs = auditionDate.getTime() - birthDate.getTime()
+    const ageYears = diffMs / (1000 * 60 * 60 * 24 * 365.25)
 
-    if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
-      age--
-    }
-
-    return age
+    return Math.round(ageYears * 10) / 10 // Round to 1 decimal place
   }
 
   const getMinorMembers = (application: Application) => {
@@ -651,6 +646,14 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
         <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
           <CheckCircle className="h-4 w-4 mr-1" />
           Validée
+        </Badge>
+      )
+    }
+    if (status === "rejected") {
+      return (
+        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+          <AlertCircle className="h-4 w-4 mr-1" />
+          Refusée
         </Badge>
       )
     }
@@ -800,6 +803,7 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
                         <SelectItem value="all">Tous</SelectItem>
                         <SelectItem value="pending">En attente</SelectItem>
                         <SelectItem value="validated">Validées</SelectItem>
+                        <SelectItem value="rejected">Refusées</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -899,6 +903,15 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
                                 {!allDocsPresent && (
                                   <p className="text-xs text-red-600 text-center">Documents manquants</p>
                                 )}
+                                <Button
+                                  variant="destructive"
+                                  onClick={() => updateApplicationStatus(application.id, "rejected")}
+                                  disabled={isUpdating}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  <AlertCircle className="h-4 w-4 mr-2" />
+                                  Refuser
+                                </Button>
                               </div>
                             ) : (
                               <Button
