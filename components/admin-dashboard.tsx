@@ -708,7 +708,7 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
   })
 
   const stats = {
-    total: applications.length,
+    total: applications.filter((app) => app.status !== "rejected").length,
     scheduled: applications.filter((app) => app.time_slot_id).length,
   }
 
