@@ -67,26 +67,30 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
     const birth = new Date(birthDate)
     const auditionDate = new Date(2026, 0, 31) // 31 janvier 2026
 
-    let age = auditionDate.getFullYear() - birth.getFullYear()
-    const monthDiff = auditionDate.getMonth() - birth.getMonth()
+    // Calculate difference in milliseconds
+    const diffMs = auditionDate.getTime() - birth.getTime()
 
-    if (monthDiff < 0 || (monthDiff === 0 && auditionDate.getDate() < birth.getDate())) {
-      age--
-    }
+    // Convert to years (365.25 days per year to account for leap years)
+    const ageYears = diffMs / (1000 * 60 * 60 * 24 * 365.25)
 
-    return age
+    // Round to 2 decimal places
+    return Math.round(ageYears * 100) / 100
   }
 
   const validateSoloAge = (birthDate: string): { valid: boolean; age: number; message?: string } => {
     const age = calculateAgeAtAudition(birthDate)
     if (age < 13) {
-      return { valid: false, age, message: `Vous aurez ${age} ans au 31 janvier 2026. L'âge minimum est de 13 ans.` }
-    }
-    if (age >= 24) {
       return {
         valid: false,
         age,
-        message: `Vous aurez ${age} ans au 31 janvier 2026. L'âge doit être de 23 ans maximum.`,
+        message: `Vous aurez ${age.toFixed(2)} ans au 31 janvier 2026. L'âge minimum est de 13 ans.`,
+      }
+    }
+    if (age > 23) {
+      return {
+        valid: false,
+        age,
+        message: `Vous aurez ${age.toFixed(2)} ans au 31 janvier 2026. L'âge maximum est de 23 ans.`,
       }
     }
     return { valid: true, age }
@@ -98,14 +102,14 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
       return {
         valid: false,
         age,
-        message: `Ce membre aura ${age} ans au 31 janvier 2026. L'âge minimum est de 13 ans.`,
+        message: `Ce membre aura ${age.toFixed(2)} ans au 31 janvier 2026. L'âge minimum est de 13 ans.`,
       }
     }
-    if (age >= 26) {
+    if (age > 25) {
       return {
         valid: false,
         age,
-        message: `Ce membre aura ${age} ans au 31 janvier 2026. L'âge maximum pour un membre d'un groupe est de 25 ans.`,
+        message: `Ce membre aura ${age.toFixed(2)} ans au 31 janvier 2026. L'âge maximum pour un membre d'un groupe est de 25 ans.`,
       }
     }
     return { valid: true, age }
@@ -115,11 +119,11 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
     const ages = members.map((m) => calculateAgeAtAudition(m.birthDate))
     const average = ages.reduce((sum, age) => sum + age, 0) / ages.length
 
-    if (average >= 24) {
+    if (average > 23) {
       return {
         valid: false,
         average,
-        message: `La moyenne d'âge du groupe est de ${average.toFixed(1)} ans au 31 janvier 2026. Elle doit être de 23 ans maximum.`,
+        message: `La moyenne d'âge du groupe est de ${average.toFixed(2)} ans au 31 janvier 2026. Elle doit être de 23 ans maximum.`,
       }
     }
     return { valid: true, average }
