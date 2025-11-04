@@ -86,7 +86,7 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
         message: `Vous aurez ${age.toFixed(2)} ans au 31 janvier 2026. L'âge minimum est de 13 ans.`,
       }
     }
-    if (age > 23) {
+    if (age >= 24) {
       return {
         valid: false,
         age,
