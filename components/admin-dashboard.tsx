@@ -33,6 +33,8 @@ import {
   Download,
   FileCheck,
   FileX,
+  FileSpreadsheet,
+  FolderArchive,
 } from "lucide-react"
 import Image from "next/image"
 
@@ -133,6 +135,8 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
   const [isSavingSMTP, setIsSavingSMTP] = useState(false)
   const [isTestingSMTP, setIsTestingSMTP] = useState(false)
   const [smtpTestResult, setSMTPTestResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [isExportingExcel, setIsExportingExcel] = useState(false)
+  const [isDownloadingZip, setIsDownloadingZip] = useState(false)
 
   useEffect(() => {
     loadTimeSlots()
@@ -723,6 +727,77 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
     {} as Record<string, TimeSlot[]>,
   )
 
+  const exportToExcel = async () => {
+    setIsExportingExcel(true)
+    try {
+      const response = await fetch("/api/applications/export")
+      const data = await response.json()
+
+      // Import xlsx dynamically to reduce bundle size
+      const XLSX = await import("xlsx")
+
+      // Create workbook and worksheet
+      const ws = XLSX.utils.json_to_sheet(data)
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, "Candidatures")
+
+      // Generate Excel file
+      XLSX.writeFile(wb, `candidatures_${new Date().toISOString().split("T")[0]}.xlsx`)
+    } catch (error) {
+      console.error("Error exporting to Excel:", error)
+      alert("Erreur lors de l'export Excel")
+    }
+    setIsExportingExcel(false)
+  }
+
+  const downloadAllTechnicalSheets = async () => {
+    setIsDownloadingZip(true)
+    try {
+      const response = await fetch("/api/technical-sheets/download-all")
+      const sheetsData = await response.json()
+
+      if (sheetsData.length === 0) {
+        alert("Aucune fiche technique disponible")
+        setIsDownloadingZip(false)
+        return
+      }
+
+      // Import JSZip dynamically
+      const JSZip = (await import("jszip")).default
+
+      const zip = new JSZip()
+
+      // Download each PDF and add to zip
+      for (const sheet of sheetsData) {
+        try {
+          const pdfResponse = await fetch(sheet.pdfUrl)
+          const pdfBlob = await pdfResponse.blob()
+
+          // Sanitize filename
+          const sanitizedName = sheet.stageName.replace(/[^a-z0-9]/gi, "_").toLowerCase()
+          zip.file(`${sanitizedName}.pdf`, pdfBlob)
+        } catch (error) {
+          console.error(`Error downloading sheet for ${sheet.stageName}:`, error)
+        }
+      }
+
+      // Generate and download zip
+      const zipBlob = await zip.generateAsync({ type: "blob" })
+      const url = URL.createObjectURL(zipBlob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `fiches_techniques_${new Date().toISOString().split("T")[0]}.zip`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error("Error creating zip:", error)
+      alert("Erreur lors de la création du fichier ZIP")
+    }
+    setIsDownloadingZip(false)
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-white">
@@ -807,6 +882,16 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-4">
+                  <Button onClick={exportToExcel} disabled={isExportingExcel} variant="outline" size="sm">
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    {isExportingExcel ? "Export en cours..." : "Exporter en Excel"}
+                  </Button>
+                  <Button onClick={downloadAllTechnicalSheets} disabled={isDownloadingZip} variant="outline" size="sm">
+                    <FolderArchive className="h-4 w-4 mr-2" />
+                    {isDownloadingZip ? "Téléchargement..." : "Télécharger toutes les fiches techniques (ZIP)"}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
