@@ -18,29 +18,30 @@ export async function GET() {
     return NextResponse.json({ error: "Non autorisé" }, { status: 403 })
   }
 
-  // Fetch all applications with technical sheets
-  const { data: applications, error } = await supabase
-    .from("applications")
+  const { data: technicalSheets, error } = await supabase
+    .from("technical_sheets")
     .select(
       `
-      id,
-      stage_name,
-      technical_sheets(pdf_url)
+      pdf_url,
+      application_id,
+      applications!inner(stage_name)
     `,
     )
-    .order("stage_name", { ascending: true })
+    .order("applications(stage_name)", { ascending: true })
 
   if (error) {
+    console.error("[v0] Error fetching technical sheets:", error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  // Filter applications that have technical sheets
-  const sheetsData = applications
-    .filter((app: any) => app.technical_sheets && app.technical_sheets.length > 0 && app.technical_sheets[0].pdf_url)
-    .map((app: any) => ({
-      stageName: app.stage_name,
-      pdfUrl: app.technical_sheets[0].pdf_url,
+  const sheetsData = technicalSheets
+    .filter((sheet: any) => sheet.pdf_url)
+    .map((sheet: any) => ({
+      stageName: sheet.applications.stage_name,
+      pdfUrl: sheet.pdf_url,
     }))
+
+  console.log("[v0] Found technical sheets:", sheetsData.length)
 
   return NextResponse.json(sheetsData)
 }
