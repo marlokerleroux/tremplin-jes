@@ -65,9 +65,11 @@ export async function POST(request: NextRequest) {
       .eq("member_index", memberIndex)
       .maybeSingle()
 
+    let dbResult
     if (existing) {
+      console.log("[v0] Updating existing parental auth:", existing.id)
       // Update existing record
-      await supabase
+      dbResult = await supabase
         .from("parental_authorizations")
         .update({
           pdf_url: blob.url,
@@ -78,19 +80,34 @@ export async function POST(request: NextRequest) {
           updated_at: new Date().toISOString(),
         })
         .eq("id", existing.id)
+        .select()
+
+      console.log("[v0] Update result:", dbResult)
     } else {
-      await supabase.from("parental_authorizations").insert({
-        application_id: applicationId,
-        member_index: memberIndex,
-        member_name: memberName,
-        pdf_url: blob.url,
-      })
+      console.log("[v0] Creating new parental auth for application:", applicationId, "member:", memberIndex)
+      dbResult = await supabase
+        .from("parental_authorizations")
+        .insert({
+          application_id: applicationId,
+          member_index: memberIndex,
+          member_name: memberName,
+          pdf_url: blob.url,
+        })
+        .select()
+
+      console.log("[v0] Insert result:", dbResult)
+    }
+
+    if (dbResult.error) {
+      console.error("[v0] Database error:", dbResult.error)
+      return NextResponse.json({ error: "Erreur lors de la sauvegarde en base de données" }, { status: 500 })
     }
 
     return NextResponse.json({
       url: blob.url,
       filename: file.name,
       size: file.size,
+      success: true,
     })
   } catch (error) {
     console.error("Error uploading parental authorization:", error)

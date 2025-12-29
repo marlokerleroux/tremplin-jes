@@ -142,7 +142,8 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   const [uploadType, setUploadType] = useState<"technical" | "parental">("technical")
   const [uploadingApplication, setUploadingApplication] = useState<Application | null>(null)
-  const [selectedMemberIndex, setSelectedMemberIndex] = useState<number>(0)
+  const [selectedMemberIndex, setSelectedMemberIndex] = useState<number>(0) // Renamed from uploadingMemberIndex
+  const [uploadingMemberName, setUploadingMemberName] = useState<string | null>(null) // Added state for member name
   const [isUploading, setIsUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
 
@@ -806,40 +807,36 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
     setIsDownloadingZip(false)
   }
 
-  const handleAdminUpload = async (file: File) => {
+  // <UPDATE START>
+  const handleAdminUploadTechnicalSheet = async (file: File) => {
     if (!uploadingApplication) return
 
-    setIsUploading(true)
-    setUploadError(null)
-
     try {
+      setUploadError(null)
+      console.log("[v0] Uploading technical sheet for application:", uploadingApplication.id)
+
       const formData = new FormData()
       formData.append("file", file)
       formData.append("applicationId", uploadingApplication.id)
 
-      let endpoint = ""
-      if (uploadType === "technical") {
-        endpoint = "/api/admin/technical-sheet/upload"
-      } else {
-        const minors = getMinorMembers(uploadingApplication)
-        const minor = minors[selectedMemberIndex]
-        formData.append("memberIndex", minor.index.toString())
-        formData.append("memberName", `${minor.firstName} ${minor.lastName}`)
-        endpoint = "/api/admin/parental-authorization/upload"
-      }
-
-      const response = await fetch(endpoint, {
+      const response = await fetch("/api/admin/technical-sheet/upload", {
         method: "POST",
         body: formData,
       })
 
+      const result = await response.json()
+      console.log("[v0] Upload response:", result)
+
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || "Erreur lors de l'upload")
+        throw new Error(result.error || "Erreur lors de l'upload")
       }
 
       const supabase = createClient()
-      const { data: allApps } = await supabase
+
+      // Wait a bit for database to propagate
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      const { data: refreshedApp, error: fetchError } = await supabase
         .from("applications")
         .select(
           `
@@ -859,26 +856,135 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
           time_slots (*)
         `,
         )
-        .order("created_at", { ascending: false })
+        .eq("id", uploadingApplication.id)
+        .single()
 
-      if (allApps) {
-        setApplications(allApps)
-        const updatedApp = allApps.find((app) => app.id === uploadingApplication.id)
-        if (updatedApp) {
-          setUploadingApplication(updatedApp)
-          if (selectedApplication?.id === uploadingApplication.id) {
-            setSelectedApplication(updatedApp)
-          }
+      console.log("[v0] Refreshed application:", refreshedApp)
+      console.log("[v0] Fetch error:", fetchError)
+
+      if (refreshedApp) {
+        // Update state with refreshed data
+        setApplications((prev) => prev.map((app) => (app.id === uploadingApplication.id ? refreshedApp : app)))
+        setUploadingApplication(refreshedApp)
+        if (selectedApplication?.id === uploadingApplication.id) {
+          setSelectedApplication(refreshedApp)
         }
       }
 
       setUploadDialogOpen(false)
       alert("Document uploadé avec succès !")
     } catch (error) {
-      console.error("Upload error:", error)
+      console.error("[v0] Upload error:", error)
       setUploadError(error instanceof Error ? error.message : "Erreur lors de l'upload")
     } finally {
       setIsUploading(false)
+    }
+  }
+
+  const handleAdminUploadParentalAuth = async (file: File) => {
+    if (!uploadingApplication || selectedMemberIndex === null) return // Changed uploadingMemberIndex to selectedMemberIndex
+
+    try {
+      setUploadError(null)
+      console.log(
+        "[v0] Uploading parental auth for application:",
+        uploadingApplication.id,
+        "member:",
+        selectedMemberIndex,
+      )
+
+      const memberName = uploadingMemberName || ""
+
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("applicationId", uploadingApplication.id)
+      formData.append("memberIndex", selectedMemberIndex.toString()) // Changed to selectedMemberIndex
+      formData.append("memberName", memberName)
+
+      const response = await fetch("/api/admin/parental-authorization/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      const result = await response.json()
+      console.log("[v0] Upload response:", result)
+
+      if (!response.ok) {
+        throw new Error(result.error || "Erreur lors de l'upload")
+      }
+
+      const supabase = createClient()
+
+      // Wait a bit for database to propagate
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      const { data: refreshedApp, error: fetchError } = await supabase
+        .from("applications")
+        .select(
+          `
+          *,
+          profiles:user_id (
+            first_name,
+            last_name,
+            email,
+            street_address,
+            city,
+            postal_code,
+            phone,
+            role
+          ),
+          technical_sheets (*),
+          parental_authorizations (*),
+          time_slots (*)
+        `,
+        )
+        .eq("id", uploadingApplication.id)
+        .single()
+
+      console.log("[v0] Refreshed application:", refreshedApp)
+      console.log("[v0] Fetch error:", fetchError)
+
+      if (refreshedApp) {
+        // Update state with refreshed data
+        setApplications((prev) => prev.map((app) => (app.id === uploadingApplication.id ? refreshedApp : app)))
+        setUploadingApplication(refreshedApp)
+        if (selectedApplication?.id === uploadingApplication.id) {
+          setSelectedApplication(refreshedApp)
+        }
+      }
+
+      setUploadDialogOpen(false)
+      alert("Document uploadé avec succès !")
+    } catch (error) {
+      console.error("[v0] Upload error:", error)
+      setUploadError(error instanceof Error ? error.message : "Erreur lors de l'upload")
+    } finally {
+      setIsUploading(false)
+    }
+  }
+  // <UPDATE END>
+
+  const handleAdminUpload = async (file: File) => {
+    if (!uploadingApplication) return
+
+    setIsUploading(true)
+    setUploadError(null)
+
+    try {
+      // Determine upload type and call the appropriate handler
+      if (uploadType === "technical") {
+        await handleAdminUploadTechnicalSheet(file)
+      } else {
+        await handleAdminUploadParentalAuth(file)
+      }
+    } catch (error) {
+      // Error is already set in the specific handlers, just ensure isUploading is reset if needed
+      console.error("Error in handleAdminUpload:", error)
+      setUploadError("Une erreur inattendue est survenue.") // Generic fallback error
+    } finally {
+      // isUploading is set to false within the specific handlers, so this might be redundant
+      // but keeping it here for safety if handlers were modified.
+      // However, the handlers now manage their own finally blocks.
     }
   }
 
@@ -1287,7 +1393,8 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
                                                       onClick={() => {
                                                         setUploadType("parental")
                                                         setUploadingApplication(application)
-                                                        setSelectedMemberIndex(index)
+                                                        setSelectedMemberIndex(index) // Set the correct index
+                                                        setUploadingMemberName(`${minor.firstName} ${minor.lastName}`) // Set the member name
                                                         setUploadDialogOpen(true)
                                                       }}
                                                     >

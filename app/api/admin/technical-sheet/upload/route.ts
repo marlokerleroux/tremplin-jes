@@ -64,29 +64,46 @@ export async function POST(request: NextRequest) {
       .eq("application_id", applicationId)
       .maybeSingle()
 
+    let dbResult
     if (existingSheet) {
+      console.log("[v0] Updating existing technical sheet:", existingSheet.id)
       // Update existing record
-      await supabase
+      dbResult = await supabase
         .from("technical_sheets")
         .update({
           pdf_url: blob.url,
-          validated: false, // Reset validation when new file is uploaded
+          validated: false,
           updated_at: new Date().toISOString(),
         })
         .eq("id", existingSheet.id)
+        .select()
+
+      console.log("[v0] Update result:", dbResult)
     } else {
+      console.log("[v0] Creating new technical sheet for application:", applicationId)
       // Create new record
-      await supabase.from("technical_sheets").insert({
-        application_id: applicationId,
-        pdf_url: blob.url,
-        validated: false,
-      })
+      dbResult = await supabase
+        .from("technical_sheets")
+        .insert({
+          application_id: applicationId,
+          pdf_url: blob.url,
+          validated: false,
+        })
+        .select()
+
+      console.log("[v0] Insert result:", dbResult)
+    }
+
+    if (dbResult.error) {
+      console.error("[v0] Database error:", dbResult.error)
+      return NextResponse.json({ error: "Erreur lors de la sauvegarde en base de données" }, { status: 500 })
     }
 
     return NextResponse.json({
       url: blob.url,
       filename: file.name,
       size: file.size,
+      success: true,
     })
   } catch (error) {
     console.error("Upload error:", error)
