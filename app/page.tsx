@@ -2,9 +2,10 @@ import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle, Music } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
-import { Music } from "lucide-react"
 import { Footer } from "@/components/footer"
 
 export default async function HomePage() {
@@ -22,6 +23,8 @@ export default async function HomePage() {
       redirect("/dashboard")
     }
   }
+
+  const registrationsClosed = new Date() >= new Date("2026-01-01T00:00:00")
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -46,19 +49,42 @@ export default async function HomePage() {
             </p>
           </div>
 
+          {registrationsClosed && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Inscriptions closes</AlertTitle>
+              <AlertDescription>
+                Les inscriptions au Tremplin Jeunes en Scène se sont clôturées le 31 décembre 2025.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Auth Options */}
           <div className="grid gap-4">
-            <Card className="border-2 border-primary/20 hover:border-primary/40 transition-colors">
+            <Card
+              className={`border-2 transition-colors ${
+                registrationsClosed ? "border-muted/20 opacity-60" : "border-primary/20 hover:border-primary/40"
+              }`}
+            >
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Music className="h-5 w-5 text-primary" />
                   Nouvelle candidature
                 </CardTitle>
-                <CardDescription>Créez votre compte et déposez votre candidature</CardDescription>
+                <CardDescription>
+                  {registrationsClosed
+                    ? "Les inscriptions sont closes"
+                    : "Créez votre compte et déposez votre candidature"}
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <Button asChild className="w-full bg-primary hover:bg-primary/90" size="lg">
-                  <Link href="/auth/signup">S'inscrire</Link>
+                <Button
+                  asChild={!registrationsClosed}
+                  className="w-full bg-primary hover:bg-primary/90"
+                  size="lg"
+                  disabled={registrationsClosed}
+                >
+                  {registrationsClosed ? <span>Inscriptions closes</span> : <Link href="/auth/signup">S'inscrire</Link>}
                 </Button>
               </CardContent>
             </Card>

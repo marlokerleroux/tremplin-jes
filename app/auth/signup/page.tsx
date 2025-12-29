@@ -8,12 +8,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { redirectAfterAuth } from "@/lib/redirect-after-auth"
 
 export default function SignUpPage() {
+  const registrationsClosed = new Date() >= new Date("2026-01-01T00:00:00")
+
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -105,6 +109,41 @@ export default function SignUpPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (registrationsClosed) {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center p-6 bg-gradient-to-br from-primary/10 via-white to-accent/10">
+        <div className="w-full max-w-md">
+          <Card>
+            <CardHeader className="space-y-1">
+              <CardTitle className="text-2xl font-bold text-center">Inscriptions closes</CardTitle>
+              <CardDescription className="text-center">Tremplin Jeunes en Scène</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Les inscriptions sont terminées</AlertTitle>
+                <AlertDescription>
+                  Les inscriptions au Tremplin Jeunes en Scène se sont clôturées le 31 décembre 2025.
+                </AlertDescription>
+              </Alert>
+              <p className="text-sm text-muted-foreground text-center">
+                Si vous avez déjà un compte, vous pouvez vous connecter pour accéder à votre candidature.
+              </p>
+              <div className="space-y-2">
+                <Button asChild variant="default" className="w-full">
+                  <Link href="/auth/login">Se connecter</Link>
+                </Button>
+                <Button asChild variant="outline" className="w-full bg-transparent">
+                  <Link href="/">Retour à l'accueil</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
   }
 
   return (
