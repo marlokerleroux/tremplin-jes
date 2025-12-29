@@ -35,6 +35,7 @@ import {
   FileX,
   FileSpreadsheet,
   FolderArchive,
+  Upload,
 } from "lucide-react"
 import Image from "next/image"
 
@@ -124,7 +125,7 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
   }
 
   const router = useRouter()
-  const [applications, setApplications] = useState(initialApplications)
+  const [applications, setApplications] = useState<Application[]>(initialApplications)
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([])
   const [scheduleConfig, setScheduleConfig] = useState<ScheduleConfig | null>(null)
   const [smtpConfig, setSmtpConfig] = useState<SMTPConfig | null>(null)
@@ -137,6 +138,13 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
   const [smtpTestResult, setSMTPTestResult] = useState<{ success: boolean; message: string } | null>(null)
   const [isExportingExcel, setIsExportingExcel] = useState(false)
   const [isDownloadingZip, setIsDownloadingZip] = useState(false)
+
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
+  const [uploadType, setUploadType] = useState<"technical" | "parental">("technical")
+  const [uploadingApplication, setUploadingApplication] = useState<Application | null>(null)
+  const [selectedMemberIndex, setSelectedMemberIndex] = useState<number>(0)
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
   useEffect(() => {
     loadTimeSlots()
@@ -798,6 +806,81 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
     setIsDownloadingZip(false)
   }
 
+  const handleAdminUpload = async (file: File) => {
+    if (!uploadingApplication) return
+
+    setIsUploading(true)
+    setUploadError(null)
+
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("applicationId", uploadingApplication.id)
+
+      let endpoint = ""
+      if (uploadType === "technical") {
+        endpoint = "/api/admin/technical-sheet/upload"
+      } else {
+        const minors = getMinorMembers(uploadingApplication)
+        const minor = minors[selectedMemberIndex]
+        formData.append("memberIndex", minor.index.toString())
+        formData.append("memberName", `${minor.firstName} ${minor.lastName}`)
+        endpoint = "/api/admin/parental-authorization/upload"
+      }
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Erreur lors de l'upload")
+      }
+
+      // Refresh the application data
+      const supabase = createClient()
+      const { data: updatedApp } = await supabase
+        .from("applications")
+        .select(
+          `
+          *,
+          profiles:user_id (
+            first_name,
+            last_name,
+            email,
+            street_address,
+            city,
+            postal_code,
+            phone,
+            role
+          ),
+          technical_sheets (*),
+          parental_authorizations (*),
+          time_slots (*)
+        `,
+        )
+        .eq("id", uploadingApplication.id)
+        .single()
+
+      if (updatedApp) {
+        setApplications(applications.map((app) => (app.id === uploadingApplication.id ? updatedApp : app)))
+        setUploadingApplication(updatedApp)
+        if (selectedApplication?.id === uploadingApplication.id) {
+          setSelectedApplication(updatedApp)
+        }
+      }
+
+      setUploadDialogOpen(false)
+      alert("Document uploadé avec succès !")
+    } catch (error) {
+      console.error("Upload error:", error)
+      setUploadError(error instanceof Error ? error.message : "Erreur lors de l'upload")
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-white">
@@ -1144,7 +1227,23 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
                                   )}
 
                                   <div className="space-y-2">
-                                    <h4 className="font-semibold">Fiche technique</h4>
+                                    <div className="flex items-center justify-between">
+                                      <h4 className="font-semibold">Fiche technique</h4>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                          setUploadType("technical")
+                                          setUploadingApplication(application)
+                                          setUploadDialogOpen(true)
+                                        }}
+                                      >
+                                        <Upload className="h-4 w-4 mr-2" />
+                                        {application.technical_sheets && application.technical_sheets[0]?.pdf_url
+                                          ? "Remplacer"
+                                          : "Ajouter"}
+                                      </Button>
+                                    </div>
                                     {application.technical_sheets && application.technical_sheets[0]?.pdf_url ? (
                                       <a
                                         href={application.technical_sheets[0].pdf_url}
@@ -1173,13 +1272,28 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
 
                                         return (
                                           <div className="space-y-3">
-                                            {minors.map((minor) => {
+                                            {minors.map((minor, index) => {
                                               const auth = auths.find((a) => a.member_index === minor.index)
                                               return (
                                                 <div key={minor.index} className="p-3 border rounded-lg bg-muted/30">
-                                                  <p className="text-sm font-medium mb-2">
-                                                    {minor.firstName} {minor.lastName}
-                                                  </p>
+                                                  <div className="flex items-center justify-between mb-2">
+                                                    <p className="text-sm font-medium">
+                                                      {minor.firstName} {minor.lastName}
+                                                    </p>
+                                                    <Button
+                                                      variant="outline"
+                                                      size="sm"
+                                                      onClick={() => {
+                                                        setUploadType("parental")
+                                                        setUploadingApplication(application)
+                                                        setSelectedMemberIndex(index)
+                                                        setUploadDialogOpen(true)
+                                                      }}
+                                                    >
+                                                      <Upload className="h-4 w-4 mr-2" />
+                                                      {auth?.pdf_url ? "Remplacer" : "Ajouter"}
+                                                    </Button>
+                                                  </div>
                                                   {auth?.pdf_url ? (
                                                     <a
                                                       href={auth.pdf_url}
@@ -1338,6 +1452,41 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
           </TabsContent>
         </Tabs>
       </main>
+
+      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {uploadType === "technical"
+                ? "Ajouter/Remplacer la fiche technique"
+                : "Ajouter/Remplacer l'autorisation parentale"}
+            </DialogTitle>
+            <DialogDescription>
+              {uploadType === "technical"
+                ? "Uploadez la fiche technique reçue par email"
+                : `Uploadez l'autorisation parentale pour ${uploadingApplication && getMinorMembers(uploadingApplication)[selectedMemberIndex]?.firstName} ${uploadingApplication && getMinorMembers(uploadingApplication)[selectedMemberIndex]?.lastName}`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <input
+                type="file"
+                accept=".pdf"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) {
+                    handleAdminUpload(file)
+                  }
+                }}
+                disabled={isUploading}
+                className="w-full"
+              />
+            </div>
+            {uploadError && <div className="text-sm text-red-600 bg-red-50 p-3 rounded">{uploadError}</div>}
+            {isUploading && <div className="text-sm text-muted-foreground">Upload en cours...</div>}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
