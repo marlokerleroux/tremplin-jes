@@ -838,9 +838,8 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
         throw new Error(error.error || "Erreur lors de l'upload")
       }
 
-      // Refresh the application data
       const supabase = createClient()
-      const { data: updatedApp } = await supabase
+      const { data: allApps } = await supabase
         .from("applications")
         .select(
           `
@@ -860,14 +859,16 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
           time_slots (*)
         `,
         )
-        .eq("id", uploadingApplication.id)
-        .single()
+        .order("created_at", { ascending: false })
 
-      if (updatedApp) {
-        setApplications(applications.map((app) => (app.id === uploadingApplication.id ? updatedApp : app)))
-        setUploadingApplication(updatedApp)
-        if (selectedApplication?.id === uploadingApplication.id) {
-          setSelectedApplication(updatedApp)
+      if (allApps) {
+        setApplications(allApps)
+        const updatedApp = allApps.find((app) => app.id === uploadingApplication.id)
+        if (updatedApp) {
+          setUploadingApplication(updatedApp)
+          if (selectedApplication?.id === uploadingApplication.id) {
+            setSelectedApplication(updatedApp)
+          }
         }
       }
 
