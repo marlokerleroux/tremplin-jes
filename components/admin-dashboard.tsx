@@ -18,8 +18,11 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Music,
   Search,
@@ -36,6 +39,11 @@ import {
   FileSpreadsheet,
   FolderArchive,
   Upload,
+  Pencil,
+  Plus,
+  Trash2,
+  Save,
+  X,
 } from "lucide-react"
 import Image from "next/image"
 
@@ -146,6 +154,21 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
   const [uploadingMemberName, setUploadingMemberName] = useState<string | null>(null) // Added state for member name
   const [isUploading, setIsUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [editingApplication, setEditingApplication] = useState<Application | null>(null)
+  const [editFormData, setEditFormData] = useState<{
+    stage_name: string
+    musical_style: string
+    biography: string
+    instagram: string
+    has_original_composition: boolean
+    is_sacem_registered: boolean
+    has_stage_experience: boolean
+    stage_experience_details: string
+    group_members: any[]
+  } | null>(null)
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
 
   useEffect(() => {
     loadTimeSlots()
@@ -807,7 +830,6 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
     setIsDownloadingZip(false)
   }
 
-  // <UPDATE START>
   const handleAdminUploadTechnicalSheet = async (file: File) => {
     if (!uploadingApplication) return
 
@@ -962,7 +984,6 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
       setIsUploading(false)
     }
   }
-  // <UPDATE END>
 
   const handleAdminUpload = async (file: File) => {
     if (!uploadingApplication) return
@@ -985,6 +1006,107 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
       // isUploading is set to false within the specific handlers, so this might be redundant
       // but keeping it here for safety if handlers were modified.
       // However, the handlers now manage their own finally blocks.
+    }
+  }
+
+  const openEditDialog = (application: Application) => {
+    setEditingApplication(application)
+    setEditFormData({
+      stage_name: application.stage_name || "",
+      musical_style: application.musical_style || "",
+      biography: application.biography || "",
+      instagram: application.instagram || "",
+      has_original_composition: application.has_original_composition || false,
+      is_sacem_registered: application.is_sacem_registered || false,
+      has_stage_experience: application.has_stage_experience || false,
+      stage_experience_details: application.stage_experience_details || "",
+      group_members: application.group_members || [],
+    })
+    setIsEditDialogOpen(true)
+  }
+
+  const addGroupMember = () => {
+    if (!editFormData) return
+    setEditFormData({
+      ...editFormData,
+      group_members: [...editFormData.group_members, { firstName: "", lastName: "", birthDate: "" }],
+    })
+  }
+
+  const removeGroupMember = (index: number) => {
+    if (!editFormData) return
+    const newMembers = editFormData.group_members.filter((_, i) => i !== index)
+    setEditFormData({
+      ...editFormData,
+      group_members: newMembers,
+    })
+  }
+
+  const updateGroupMember = (index: number, field: string, value: string) => {
+    if (!editFormData) return
+    const newMembers = [...editFormData.group_members]
+    newMembers[index] = { ...newMembers[index], [field]: value }
+    setEditFormData({
+      ...editFormData,
+      group_members: newMembers,
+    })
+  }
+
+  const saveApplicationEdit = async () => {
+    if (!editingApplication || !editFormData) return
+
+    setIsSavingEdit(true)
+    try {
+      const response = await fetch("/api/admin/application/update", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          applicationId: editingApplication.id,
+          updates: editFormData,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Erreur lors de la mise à jour")
+      }
+
+      // Refresh applications
+      const supabase = createClient()
+      const { data: refreshedApp } = await supabase
+        .from("applications")
+        .select(`
+          *,
+          profiles:user_id (
+            first_name,
+            last_name,
+            email,
+            street_address,
+            city,
+            postal_code,
+            phone,
+            role
+          ),
+          technical_sheets (*),
+          parental_authorizations (*),
+          time_slots (*)
+        `)
+        .eq("id", editingApplication.id)
+        .single()
+
+      if (refreshedApp) {
+        setApplications((prev) => prev.map((app) => (app.id === editingApplication.id ? refreshedApp : app)))
+      }
+
+      setIsEditDialogOpen(false)
+      setEditingApplication(null)
+      setEditFormData(null)
+      alert("Candidature mise à jour avec succès !")
+    } catch (error) {
+      console.error("Error saving edit:", error)
+      alert(error instanceof Error ? error.message : "Erreur lors de la mise à jour")
+    } finally {
+      setIsSavingEdit(false)
     }
   }
 
@@ -1163,7 +1285,7 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
                                 ))}
                             </div>
                           </div>
-                          <div className="flex gap-2">
+                          <div className="flex flex-wrap gap-2">
                             {application.status === "pending" ? (
                               <div className="flex flex-col gap-2">
                                 <Button
@@ -1184,15 +1306,31 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
                                 variant="outline"
                                 onClick={() => updateApplicationStatus(application.id, "pending")}
                                 disabled={isUpdating}
+                                size="sm"
+                                className="text-xs"
                               >
-                                <Clock className="h-4 w-4 mr-2" />
-                                Remettre en attente
+                                <Clock className="h-3 w-3 mr-1" />
+                                En attente
                               </Button>
                             )}
+                            <Button
+                              variant="outline"
+                              onClick={() => openEditDialog(application)}
+                              size="sm"
+                              className="text-xs"
+                            >
+                              <Pencil className="h-3 w-3 mr-1" />
+                              Éditer
+                            </Button>
                             <Dialog>
                               <DialogTrigger asChild>
-                                <Button variant="outline" onClick={() => setSelectedApplication(application)}>
-                                  <Eye className="h-4 w-4 mr-2" />
+                                <Button
+                                  variant="outline"
+                                  onClick={() => setSelectedApplication(application)}
+                                  size="sm"
+                                  className="text-xs"
+                                >
+                                  <Eye className="h-3 w-3 mr-1" />
                                   Détails
                                 </Button>
                               </DialogTrigger>
@@ -1593,6 +1731,187 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
             {uploadError && <div className="text-sm text-red-600 bg-red-50 p-3 rounded">{uploadError}</div>}
             {isUploading && <div className="text-sm text-muted-foreground">Upload en cours...</div>}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Éditer la candidature</DialogTitle>
+            <DialogDescription>
+              Modifiez les informations de la candidature de {editingApplication?.stage_name}
+            </DialogDescription>
+          </DialogHeader>
+
+          {editFormData && (
+            <div className="space-y-6 py-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-stage-name">Nom de scène</Label>
+                  <Input
+                    id="edit-stage-name"
+                    value={editFormData.stage_name}
+                    onChange={(e) => setEditFormData({ ...editFormData, stage_name: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-musical-style">Style musical</Label>
+                  <Input
+                    id="edit-musical-style"
+                    value={editFormData.musical_style}
+                    onChange={(e) => setEditFormData({ ...editFormData, musical_style: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-instagram">Instagram</Label>
+                <Input
+                  id="edit-instagram"
+                  value={editFormData.instagram}
+                  onChange={(e) => setEditFormData({ ...editFormData, instagram: e.target.value })}
+                  placeholder="@username"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-biography">Biographie</Label>
+                <Textarea
+                  id="edit-biography"
+                  value={editFormData.biography}
+                  onChange={(e) => setEditFormData({ ...editFormData, biography: e.target.value })}
+                  rows={5}
+                />
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="edit-original"
+                    checked={editFormData.has_original_composition}
+                    onCheckedChange={(checked) =>
+                      setEditFormData({ ...editFormData, has_original_composition: !!checked })
+                    }
+                  />
+                  <Label htmlFor="edit-original">Propose une composition originale</Label>
+                </div>
+
+                {editFormData.has_original_composition && (
+                  <div className="flex items-center space-x-2 ml-6">
+                    <Checkbox
+                      id="edit-sacem"
+                      checked={editFormData.is_sacem_registered || false}
+                      onCheckedChange={(checked) =>
+                        setEditFormData({ ...editFormData, is_sacem_registered: !!checked })
+                      }
+                    />
+                    <Label htmlFor="edit-sacem">Inscrit à la SACEM</Label>
+                  </div>
+                )}
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="edit-experience"
+                    checked={editFormData.has_stage_experience}
+                    onCheckedChange={(checked) => setEditFormData({ ...editFormData, has_stage_experience: !!checked })}
+                  />
+                  <Label htmlFor="edit-experience">A une expérience scénique</Label>
+                </div>
+
+                {editFormData.has_stage_experience && (
+                  <div className="space-y-2 ml-6">
+                    <Label htmlFor="edit-experience-details">Détails de l'expérience</Label>
+                    <Textarea
+                      id="edit-experience-details"
+                      value={editFormData.stage_experience_details}
+                      onChange={(e) => setEditFormData({ ...editFormData, stage_experience_details: e.target.value })}
+                      rows={3}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Group members section */}
+              {editingApplication?.application_type === "group" && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-base font-semibold">Membres du groupe</Label>
+                    <Button type="button" variant="outline" size="sm" onClick={addGroupMember}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Ajouter un membre
+                    </Button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {editFormData.group_members.map((member, index) => (
+                      <Card key={index} className="p-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 grid gap-4 sm:grid-cols-3">
+                            <div className="space-y-2">
+                              <Label>Prénom</Label>
+                              <Input
+                                value={member.firstName || ""}
+                                onChange={(e) => updateGroupMember(index, "firstName", e.target.value)}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Nom</Label>
+                              <Input
+                                value={member.lastName || ""}
+                                onChange={(e) => updateGroupMember(index, "lastName", e.target.value)}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Date de naissance</Label>
+                              <Input
+                                type="date"
+                                value={member.birthDate || ""}
+                                onChange={(e) => updateGroupMember(index, "birthDate", e.target.value)}
+                              />
+                            </div>
+                          </div>
+                          {editFormData.group_members.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => removeGroupMember(index)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Solo artist birth date */}
+              {editingApplication?.application_type === "solo" && editFormData.group_members.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Date de naissance</Label>
+                  <Input
+                    type="date"
+                    value={editFormData.group_members[0]?.birthDate || ""}
+                    onChange={(e) => updateGroupMember(0, "birthDate", e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} disabled={isSavingEdit}>
+              <X className="h-4 w-4 mr-2" />
+              Annuler
+            </Button>
+            <Button onClick={saveApplicationEdit} disabled={isSavingEdit}>
+              <Save className="h-4 w-4 mr-2" />
+              {isSavingEdit ? "Enregistrement..." : "Enregistrer"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
