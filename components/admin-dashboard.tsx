@@ -260,6 +260,7 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
     loadTimeSlots()
     loadScheduleConfig()
     loadSMTPConfig()
+    loadAuditionTracking()
   }, [])
 
   const loadTimeSlots = async () => {
