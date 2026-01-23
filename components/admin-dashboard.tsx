@@ -322,14 +322,18 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
   }
 
   const loadAuditionTracking = async () => {
-    const supabase = createClient()
-    const { data, error } = await supabase.from("audition_tracking").select("*")
-    if (data && !error) {
-      const trackingMap: Record<string, AuditionTracking> = {}
-      data.forEach((track) => {
-        trackingMap[track.application_id] = track
-      })
-      setAuditionTracking(trackingMap)
+    try {
+      const response = await fetch("/api/admin/audition-tracking")
+      const result = await response.json()
+      if (result.success && result.data) {
+        const trackingMap: Record<string, AuditionTracking> = {}
+        result.data.forEach((track: AuditionTracking) => {
+          trackingMap[track.application_id] = track
+        })
+        setAuditionTracking(trackingMap)
+      }
+    } catch (error) {
+      console.error("Erreur chargement tracking:", error)
     }
   }
 
@@ -362,36 +366,25 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
   }
 
   const updateAuditionNotes = async (applicationId: string, notes: string) => {
-    const supabase = createClient()
-    const now = new Date().toISOString()
+    try {
+      const response = await fetch("/api/admin/audition-tracking", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId, notes }),
+      })
 
-    const existingTracking = auditionTracking[applicationId]
+      const result = await response.json()
 
-    if (existingTracking) {
-      const { error } = await supabase
-        .from("audition_tracking")
-        .update({ notes, updated_at: now })
-        .eq("application_id", applicationId)
-
-      if (!error) {
+      if (result.success && result.data) {
         setAuditionTracking((prev) => ({
           ...prev,
-          [applicationId]: { ...prev[applicationId], notes },
+          [applicationId]: result.data,
         }))
+      } else {
+        console.error("Erreur mise à jour notes:", result.error)
       }
-    } else {
-      const { data, error } = await supabase
-        .from("audition_tracking")
-        .insert({ application_id: applicationId, notes })
-        .select()
-        .single()
-
-      if (!error && data) {
-        setAuditionTracking((prev) => ({
-          ...prev,
-          [applicationId]: data,
-        }))
-      }
+    } catch (error) {
+      console.error("Erreur réseau notes:", error)
     }
   }
 
