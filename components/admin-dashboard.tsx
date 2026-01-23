@@ -1,8 +1,65 @@
 "use client"
 
-import type React from "react"
+import React, { useState, useEffect } from "react"
 
-import { useState, useEffect } from "react"
+function NoteDialog({ 
+  stageName, 
+  currentNote, 
+  onSave 
+}: { 
+  stageName: string
+  currentNote: string | null | undefined
+  onSave: (note: string) => Promise<void>
+}) {
+  const [noteText, setNoteText] = useState(currentNote || "")
+  const [isSaving, setIsSaving] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
+
+  useEffect(() => {
+    if (isOpen) {
+      setNoteText(currentNote || "")
+    }
+  }, [isOpen, currentNote])
+
+  const handleSave = async () => {
+    setIsSaving(true)
+    await onSave(noteText)
+    setIsSaving(false)
+    setIsOpen(false)
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="ghost" className="h-7 px-2 relative">
+          <MessageSquare className="h-3 w-3" />
+          {currentNote && (
+            <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full" />
+          )}
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Notes - {stageName}</DialogTitle>
+          <DialogDescription>
+            Notes de l'organisateur pour ce candidat
+          </DialogDescription>
+        </DialogHeader>
+        <Textarea
+          placeholder="Notes internes (problèmes, retards, etc.)"
+          value={noteText}
+          onChange={(e) => setNoteText(e.target.value)}
+          rows={4}
+        />
+        <DialogFooter>
+          <Button onClick={handleSave} disabled={isSaving}>
+            {isSaving ? "Enregistrement..." : "Enregistrer"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -2002,27 +2059,13 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
                                   <option value="ready">Prêt à passer</option>
                                   <option value="performed">Passé</option>
                                 </select>
-                                <Dialog>
-                                  <DialogTrigger asChild>
-                                    <Button size="sm" variant="ghost" className="h-7 px-2">
-                                      <MessageSquare className="h-3 w-3" />
-                                    </Button>
-                                  </DialogTrigger>
-                                  <DialogContent>
-                                    <DialogHeader>
-                                      <DialogTitle>Notes - {app.stage_name}</DialogTitle>
-                                      <DialogDescription>
-                                        Notes de l'organisateur pour ce candidat
-                                      </DialogDescription>
-                                    </DialogHeader>
-                                    <Textarea
-                                      placeholder="Notes internes (problèmes, retards, etc.)"
-                                      defaultValue={tracking?.notes || ""}
-                                      onBlur={(e) => updateAuditionNotes(app.id, e.target.value)}
-                                      rows={4}
-                                    />
-                                  </DialogContent>
-                                </Dialog>
+                                <NoteDialog
+                                  stageName={app.stage_name}
+                                  currentNote={tracking?.notes || null}
+                                  onSave={async (note: string) => {
+                                    await updateAuditionNotes(app.id, note)
+                                  }}
+                                />
                               </div>
                             </div>
                           )
