@@ -1845,7 +1845,7 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
                   </div>
                   <div className="p-2 rounded bg-yellow-100">
                     <div className="text-xl font-bold text-yellow-700">
-                      {Object.values(auditionTracking).filter((t) => t.has_arrived && !t.has_performed).length}
+                      {Object.values(auditionTracking).filter((t) => t.has_arrived && !t.is_checked_in).length}
                     </div>
                     <div className="text-xs text-yellow-700">Arrivés</div>
                   </div>
@@ -1900,15 +1900,16 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
                   </Select>
                 </div>
 
-                {/* Candidates list */}
-                <div className="space-y-1">
-                  {applications
+                {/* Candidates list by day */}
+                {["2026-01-31", "2026-02-01"].map((date) => {
+                  const dayApplications = applications
                     .filter((app) => app.time_slot_id)
                     .filter((app) => {
-                      if (auditionDateFilter !== "all") {
-                        const slot = timeSlots.find((s) => s.id === app.time_slot_id)
-                        if (slot?.date !== auditionDateFilter) return false
-                      }
+                      const slot = timeSlots.find((s) => s.id === app.time_slot_id)
+                      return slot?.date === date
+                    })
+                    .filter((app) => {
+                      if (auditionDateFilter !== "all" && auditionDateFilter !== date) return false
                       if (auditionStatusFilter !== "all") {
                         const tracking = auditionTracking[app.id]
                         switch (auditionStatusFilter) {
@@ -1936,92 +1937,112 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
                       const slotA = timeSlots.find((s) => s.id === a.time_slot_id)
                       const slotB = timeSlots.find((s) => s.id === b.time_slot_id)
                       if (!slotA || !slotB) return 0
-                      if (slotA.date !== slotB.date) return slotA.date.localeCompare(slotB.date)
                       return slotA.start_time.localeCompare(slotB.start_time)
                     })
-                    .map((app) => {
-                      const tracking = auditionTracking[app.id]
-                      const slot = timeSlots.find((s) => s.id === app.time_slot_id)
-                      
-                      let statusColor = "bg-gray-300"
-                      if (tracking?.has_performed) {
-                        statusColor = "bg-green-500"
-                      } else if (tracking?.is_checked_in) {
-                        statusColor = "bg-blue-400"
-                      } else if (tracking?.has_arrived) {
-                        statusColor = "bg-yellow-400"
-                      }
 
-                      const getCurrentStatus = () => {
-                        if (tracking?.has_performed) return "performed"
-                        if (tracking?.is_checked_in) return "ready"
-                        if (tracking?.has_arrived) return "arrived"
-                        return "not_arrived"
-                      }
+                  if (auditionDateFilter !== "all" && auditionDateFilter !== date) return null
+                  if (dayApplications.length === 0 && auditionDateFilter === "all") return null
 
-                      const handleStatusChange = (newStatus: string) => {
-                        if (newStatus === "not_arrived") {
-                          updateAuditionStatusFull(app.id, false, false, false)
-                        } else if (newStatus === "arrived") {
-                          updateAuditionStatusFull(app.id, true, false, false)
-                        } else if (newStatus === "ready") {
-                          updateAuditionStatusFull(app.id, true, true, false)
-                        } else if (newStatus === "performed") {
-                          updateAuditionStatusFull(app.id, true, true, true)
-                        }
-                      }
+                  return (
+                    <div key={date} className="space-y-2">
+                      <h3 className="font-semibold text-sm bg-muted px-3 py-2 rounded sticky top-0">
+                        {date === "2026-01-31" ? "Samedi 31 janvier 2026" : "Dimanche 1er février 2026"}
+                        <span className="ml-2 text-muted-foreground font-normal">
+                          ({dayApplications.length} candidat{dayApplications.length > 1 ? "s" : ""})
+                        </span>
+                      </h3>
+                      <div className="space-y-1">
+                        {dayApplications.map((app) => {
+                          const tracking = auditionTracking[app.id]
+                          const slot = timeSlots.find((s) => s.id === app.time_slot_id)
+                          
+                          let statusColor = "bg-gray-300"
+                          if (tracking?.has_performed) {
+                            statusColor = "bg-green-500"
+                          } else if (tracking?.is_checked_in) {
+                            statusColor = "bg-blue-400"
+                          } else if (tracking?.has_arrived) {
+                            statusColor = "bg-yellow-400"
+                          }
 
-                      return (
-                        <div key={app.id} className="flex items-center gap-2 p-2 rounded hover:bg-muted/50 border-b last:border-b-0">
-                          <div className={`w-3 h-3 rounded-full shrink-0 ${statusColor}`} />
-                          <span className="text-xs font-mono w-12 shrink-0">
-                            {slot ? formatTime(slot.start_time) : "—"}
-                          </span>
-                          <span className="font-medium text-sm truncate flex-1 min-w-0">{app.stage_name}</span>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <select
-                              value={getCurrentStatus()}
-                              onChange={(e) => handleStatusChange(e.target.value)}
-                              className="h-7 w-[130px] text-xs rounded border border-input bg-background px-2 focus:outline-none focus:ring-2 focus:ring-ring"
-                            >
-                              <option value="not_arrived">Non arrivé</option>
-                              <option value="arrived">Arrivé</option>
-                              <option value="ready">Prêt à passer</option>
-                              <option value="performed">Passé</option>
-                            </select>
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button size="sm" variant="ghost" className="h-7 px-2">
-                                  <MessageSquare className="h-3 w-3" />
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>Notes - {app.stage_name}</DialogTitle>
-                                  <DialogDescription>
-                                    Notes de l'organisateur pour ce candidat
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <Textarea
-                                  placeholder="Notes internes (problèmes, retards, etc.)"
-                                  defaultValue={tracking?.notes || ""}
-                                  onBlur={(e) => updateAuditionNotes(app.id, e.target.value)}
-                                  rows={4}
-                                />
-                              </DialogContent>
-                            </Dialog>
+                          const getCurrentStatus = () => {
+                            if (tracking?.has_performed) return "performed"
+                            if (tracking?.is_checked_in) return "ready"
+                            if (tracking?.has_arrived) return "arrived"
+                            return "not_arrived"
+                          }
+
+                          const handleStatusChange = (newStatus: string) => {
+                            if (newStatus === "not_arrived") {
+                              updateAuditionStatusFull(app.id, false, false, false)
+                            } else if (newStatus === "arrived") {
+                              updateAuditionStatusFull(app.id, true, false, false)
+                            } else if (newStatus === "ready") {
+                              updateAuditionStatusFull(app.id, true, true, false)
+                            } else if (newStatus === "performed") {
+                              updateAuditionStatusFull(app.id, true, true, true)
+                            }
+                          }
+
+                          return (
+                            <div key={app.id} className="flex items-center gap-2 p-2 rounded hover:bg-muted/50 border-b last:border-b-0">
+                              <div className={`w-3 h-3 rounded-full shrink-0 ${statusColor}`} />
+                              <span className="text-xs font-mono w-12 shrink-0">
+                                {slot ? formatTime(slot.start_time) : "—"}
+                              </span>
+                              <span className="font-medium text-sm truncate flex-1 min-w-0">{app.stage_name}</span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <select
+                                  value={getCurrentStatus()}
+                                  onChange={(e) => handleStatusChange(e.target.value)}
+                                  className="h-7 w-[130px] text-xs rounded border border-input bg-background px-2 focus:outline-none focus:ring-2 focus:ring-ring"
+                                >
+                                  <option value="not_arrived">Non arrivé</option>
+                                  <option value="arrived">Arrivé</option>
+                                  <option value="ready">Prêt à passer</option>
+                                  <option value="performed">Passé</option>
+                                </select>
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button size="sm" variant="ghost" className="h-7 px-2">
+                                      <MessageSquare className="h-3 w-3" />
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent>
+                                    <DialogHeader>
+                                      <DialogTitle>Notes - {app.stage_name}</DialogTitle>
+                                      <DialogDescription>
+                                        Notes de l'organisateur pour ce candidat
+                                      </DialogDescription>
+                                    </DialogHeader>
+                                    <Textarea
+                                      placeholder="Notes internes (problèmes, retards, etc.)"
+                                      defaultValue={tracking?.notes || ""}
+                                      onBlur={(e) => updateAuditionNotes(app.id, e.target.value)}
+                                      rows={4}
+                                    />
+                                  </DialogContent>
+                                </Dialog>
+                              </div>
+                            </div>
+                          )
+                        })}
+                        {dayApplications.length === 0 && (
+                          <div className="text-center py-4 text-muted-foreground text-sm">
+                            Aucun candidat pour cette journée
                           </div>
-                        </div>
-                      )
-                    })}
-
-                  {applications.filter((app) => app.time_slot_id).length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Mic className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">Aucun candidat avec un créneau attribué</p>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
+                  )
+                })}
+
+                {applications.filter((app) => app.time_slot_id).length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Mic className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Aucun candidat avec un créneau attribué</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
