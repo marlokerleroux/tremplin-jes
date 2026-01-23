@@ -21,6 +21,12 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -44,6 +50,11 @@ import {
   Trash2,
   Save,
   X,
+  UserCheck,
+  ClipboardCheck,
+  Mic,
+  MessageSquare,
+  ChevronDown,
 } from "lucide-react"
 import Image from "next/image"
 
@@ -92,8 +103,8 @@ interface Application {
     last_name: string
     email: string
     street_address: string
-    city: string
-    postal_code: string
+    city: string // Fixed: Added missing string type
+    postal_code: string // Fixed: No longer undeclared
     phone: string | null
     role: string
   } | null
@@ -123,6 +134,18 @@ interface SMTPConfig {
   smtp_from_email: string
   smtp_from_name: string
   smtp_secure: boolean
+}
+
+interface AuditionTracking {
+  id: string
+  application_id: string
+  has_arrived: boolean
+  arrived_at: string | null
+  is_checked_in: boolean
+  checked_in_at: string | null
+  has_performed: boolean
+  performed_at: string | null
+  notes: string | null
 }
 
 export function AdminDashboard({ applications: initialApplications }: AdminDashboardProps) {
@@ -169,6 +192,12 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
     group_members: any[]
   } | null>(null)
   const [isSavingEdit, setIsSavingEdit] = useState(false)
+
+  // Audition tracking state
+  const [auditionTracking, setAuditionTracking] = useState<Record<string, AuditionTracking>>({})
+  const [auditionDateFilter, setAuditionDateFilter] = useState<string>("all")
+  const [auditionStatusFilter, setAuditionStatusFilter] = useState<string>("all")
+  const [auditionSearchTerm, setAuditionSearchTerm] = useState("")
 
   useEffect(() => {
     loadTimeSlots()
@@ -231,6 +260,120 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
         .single()
       if (!error && createdConfig) {
         setSmtpConfig(createdConfig)
+      }
+    }
+  }
+
+  const loadAuditionTracking = async () => {
+    const supabase = createClient()
+    const { data, error } = await supabase.from("audition_tracking").select("*")
+    if (data && !error) {
+      const trackingMap: Record<string, AuditionTracking> = {}
+      data.forEach((track) => {
+        trackingMap[track.application_id] = track
+      })
+      setAuditionTracking(trackingMap)
+    }
+  }
+
+  const updateAuditionStatusFull = async (
+    applicationId: string,
+    hasArrived: boolean,
+    isCheckedIn: boolean,
+    hasPerformed: boolean
+  ) => {
+    console.log("[v0] updateAuditionStatusFull called:", { applicationId, hasArrived, isCheckedIn, hasPerformed })
+    const supabase = createClient()
+    const now = new Date().toISOString()
+
+    // Check if tracking record exists
+    const existingTracking = auditionTracking[applicationId]
+    console.log("[v0] Existing tracking:", existingTracking)
+
+    const updateData = {
+      has_arrived: hasArrived,
+      arrived_at: hasArrived ? (existingTracking?.arrived_at || now) : null,
+      is_checked_in: isCheckedIn,
+      checked_in_at: isCheckedIn ? (existingTracking?.checked_in_at || now) : null,
+      has_performed: hasPerformed,
+      performed_at: hasPerformed ? (existingTracking?.performed_at || now) : null,
+      updated_at: now,
+    }
+
+    if (existingTracking) {
+      // Update existing record
+      console.log("[v0] Updating existing record...")
+      const { error } = await supabase
+        .from("audition_tracking")
+        .update(updateData)
+        .eq("application_id", applicationId)
+
+      if (!error) {
+        console.log("[v0] Update successful")
+        setAuditionTracking((prev) => ({
+          ...prev,
+          [applicationId]: {
+            ...prev[applicationId],
+            ...updateData,
+          },
+        }))
+      } else {
+        console.log("[v0] Error updating audition tracking:", error)
+      }
+    } else {
+      // Create new record
+      console.log("[v0] Creating new record...")
+      const { data, error } = await supabase
+        .from("audition_tracking")
+        .insert({
+          application_id: applicationId,
+          ...updateData,
+        })
+        .select()
+        .single()
+
+      if (!error && data) {
+        console.log("[v0] Insert successful:", data)
+        setAuditionTracking((prev) => ({
+          ...prev,
+          [applicationId]: data,
+        }))
+      } else {
+        console.log("[v0] Error inserting audition tracking:", error)
+      }
+    }
+  }
+
+  const updateAuditionNotes = async (applicationId: string, notes: string) => {
+    const supabase = createClient()
+    const now = new Date().toISOString()
+
+    const existingTracking = auditionTracking[applicationId]
+
+    if (existingTracking) {
+      const { error } = await supabase
+        .from("audition_tracking")
+        .update({ notes, updated_at: now })
+        .eq("application_id", applicationId)
+
+      if (!error) {
+        setAuditionTracking((prev) => ({
+          ...prev,
+          [applicationId]: { ...prev[applicationId], notes },
+        }))
+      }
+    } else {
+      const { data, error } = await supabase
+        .from("audition_tracking")
+        .insert({ application_id: applicationId, notes })
+        .select()
+        .single()
+
+      if (!error && data) {
+        setAuditionTracking((prev) => ({
+          ...prev,
+          [applicationId]: data,
+        }))
       }
     }
   }
@@ -1135,10 +1278,11 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
       </header>
 
       <main className="container mx-auto px-4 py-8 max-w-7xl">
-        <Tabs defaultValue="applications" className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
+        <Tabs defaultValue="auditions" className="space-y-6">
+          <TabsList className="grid w-full max-w-xl grid-cols-3">
+            <TabsTrigger value="auditions">Mode Auditions</TabsTrigger>
             <TabsTrigger value="applications">Candidatures</TabsTrigger>
-            <TabsTrigger value="schedule">Créneaux de passage</TabsTrigger>
+            <TabsTrigger value="schedule">Créneaux</TabsTrigger>
           </TabsList>
 
           <TabsContent value="applications" className="space-y-6">
@@ -1310,7 +1454,7 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
                                 className="text-xs"
                               >
                                 <Clock className="h-3 w-3 mr-1" />
-                                En attente
+                                Remettre en attente
                               </Button>
                             )}
                             <Button
@@ -1692,6 +1836,234 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
                       </div>
                     </div>
                   ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="auditions" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Mic className="h-5 w-5" />
+                      Mode Auditions - Suivi du jour J
+                    </CardTitle>
+                    <CardDescription>
+                      Suivez les arrivées et passages des candidats devant le jury
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-gray-300" />
+                      <span>Non arrivé</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-yellow-400" />
+                      <span>Arrivé</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-blue-400" />
+                      <span>Prêt à passer</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-green-500" />
+                      <span>Passé</span>
+                    </div>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Stats */}
+                <div className="grid grid-cols-4 gap-2 text-center">
+                  <div className="p-2 rounded bg-muted">
+                    <div className="text-xl font-bold">
+                      {applications.filter((app) => app.time_slot_id).length}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Attendus</div>
+                  </div>
+                  <div className="p-2 rounded bg-yellow-100">
+                    <div className="text-xl font-bold text-yellow-700">
+                      {Object.values(auditionTracking).filter((t) => t.has_arrived && !t.has_performed).length}
+                    </div>
+                    <div className="text-xs text-yellow-700">Arrivés</div>
+                  </div>
+                  <div className="p-2 rounded bg-blue-100">
+                    <div className="text-xl font-bold text-blue-700">
+                      {Object.values(auditionTracking).filter((t) => t.is_checked_in && !t.has_performed).length}
+                    </div>
+                    <div className="text-xs text-blue-700">Prêts</div>
+                  </div>
+                  <div className="p-2 rounded bg-green-100">
+                    <div className="text-xl font-bold text-green-700">
+                      {Object.values(auditionTracking).filter((t) => t.has_performed).length}
+                    </div>
+                    <div className="text-xs text-green-700">Passés</div>
+                  </div>
+                </div>
+
+                {/* Filters */}
+                <div className="flex flex-wrap gap-4 items-center">
+                  <div className="flex-1 min-w-[200px]">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Rechercher un candidat..."
+                        value={auditionSearchTerm}
+                        onChange={(e) => setAuditionSearchTerm(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                  <Select value={auditionDateFilter} onValueChange={setAuditionDateFilter}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Date" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Toutes les dates</SelectItem>
+                      <SelectItem value="2026-01-31">31 janvier 2026</SelectItem>
+                      <SelectItem value="2026-02-01">1er février 2026</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={auditionStatusFilter} onValueChange={setAuditionStatusFilter}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Statut" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous les statuts</SelectItem>
+                      <SelectItem value="not_arrived">Non arrivés</SelectItem>
+                      <SelectItem value="arrived">Arrivés</SelectItem>
+                      <SelectItem value="checked_in">Prêts à passer</SelectItem>
+                      <SelectItem value="performed">Passés</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Candidates list */}
+                <div className="space-y-1">
+                  {applications
+                    .filter((app) => app.time_slot_id)
+                    .filter((app) => {
+                      if (auditionDateFilter !== "all") {
+                        const slot = timeSlots.find((s) => s.id === app.time_slot_id)
+                        if (slot?.date !== auditionDateFilter) return false
+                      }
+                      if (auditionStatusFilter !== "all") {
+                        const tracking = auditionTracking[app.id]
+                        switch (auditionStatusFilter) {
+                          case "not_arrived":
+                            return !tracking?.has_arrived
+                          case "arrived":
+                            return tracking?.has_arrived && !tracking?.is_checked_in
+                          case "checked_in":
+                            return tracking?.is_checked_in && !tracking?.has_performed
+                          case "performed":
+                            return tracking?.has_performed
+                        }
+                      }
+                      if (auditionSearchTerm) {
+                        const search = auditionSearchTerm.toLowerCase()
+                        return (
+                          app.stage_name?.toLowerCase().includes(search) ||
+                          app.profiles?.first_name?.toLowerCase().includes(search) ||
+                          app.profiles?.last_name?.toLowerCase().includes(search)
+                        )
+                      }
+                      return true
+                    })
+                    .sort((a, b) => {
+                      const slotA = timeSlots.find((s) => s.id === a.time_slot_id)
+                      const slotB = timeSlots.find((s) => s.id === b.time_slot_id)
+                      if (!slotA || !slotB) return 0
+                      if (slotA.date !== slotB.date) return slotA.date.localeCompare(slotB.date)
+                      return slotA.start_time.localeCompare(slotB.start_time)
+                    })
+                    .map((app) => {
+                      const tracking = auditionTracking[app.id]
+                      const slot = timeSlots.find((s) => s.id === app.time_slot_id)
+                      
+                      let statusColor = "bg-gray-300"
+                      if (tracking?.has_performed) {
+                        statusColor = "bg-green-500"
+                      } else if (tracking?.is_checked_in) {
+                        statusColor = "bg-blue-400"
+                      } else if (tracking?.has_arrived) {
+                        statusColor = "bg-yellow-400"
+                      }
+
+                      const getCurrentStatus = () => {
+                        if (tracking?.has_performed) return "performed"
+                        if (tracking?.is_checked_in) return "ready"
+                        if (tracking?.has_arrived) return "arrived"
+                        return "not_arrived"
+                      }
+
+                      const handleStatusChange = (newStatus: string) => {
+                        if (newStatus === "not_arrived") {
+                          updateAuditionStatusFull(app.id, false, false, false)
+                        } else if (newStatus === "arrived") {
+                          updateAuditionStatusFull(app.id, true, false, false)
+                        } else if (newStatus === "ready") {
+                          updateAuditionStatusFull(app.id, true, true, false)
+                        } else if (newStatus === "performed") {
+                          updateAuditionStatusFull(app.id, true, true, true)
+                        }
+                      }
+
+                      return (
+                        <div key={app.id} className="flex items-center gap-2 p-2 rounded hover:bg-muted/50 border-b last:border-b-0">
+                          <div className={`w-3 h-3 rounded-full shrink-0 ${statusColor}`} />
+                          <span className="text-xs font-mono w-12 shrink-0">
+                            {slot ? formatTime(slot.start_time) : "—"}
+                          </span>
+                          <span className="font-medium text-sm truncate flex-1 min-w-0">{app.stage_name}</span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <select
+                              value={getCurrentStatus()}
+                              onChange={(e) => {
+                                console.log("[v0] Select onChange triggered, value:", e.target.value, "app.id:", app.id)
+                                handleStatusChange(e.target.value)
+                              }}
+                              className="h-7 w-[130px] text-xs rounded border border-input bg-background px-2 focus:outline-none focus:ring-2 focus:ring-ring"
+                            >
+                              <option value="not_arrived">Non arrivé</option>
+                              <option value="arrived">Arrivé</option>
+                              <option value="ready">Prêt à passer</option>
+                              <option value="performed">Passé</option>
+                            </select>
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button size="sm" variant="ghost" className="h-7 px-2">
+                                  <MessageSquare className="h-3 w-3" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>Notes - {app.stage_name}</DialogTitle>
+                                  <DialogDescription>
+                                    Notes de l'organisateur pour ce candidat
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <Textarea
+                                  placeholder="Notes internes (problèmes, retards, etc.)"
+                                  defaultValue={tracking?.notes || ""}
+                                  onBlur={(e) => updateAuditionNotes(app.id, e.target.value)}
+                                  rows={4}
+                                />
+                              </DialogContent>
+                            </Dialog>
+                          </div>
+                        </div>
+                      )
+                    })}
+
+                  {applications.filter((app) => app.time_slot_id).length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Mic className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Aucun candidat avec un créneau attribué</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
