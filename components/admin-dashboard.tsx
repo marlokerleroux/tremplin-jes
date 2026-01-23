@@ -282,65 +282,25 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
     isCheckedIn: boolean,
     hasPerformed: boolean
   ) => {
-    console.log("[v0] updateAuditionStatusFull called:", { applicationId, hasArrived, isCheckedIn, hasPerformed })
-    const supabase = createClient()
-    const now = new Date().toISOString()
+    try {
+      const response = await fetch("/api/admin/audition-tracking", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId, hasArrived, isCheckedIn, hasPerformed }),
+      })
 
-    // Check if tracking record exists
-    const existingTracking = auditionTracking[applicationId]
-    console.log("[v0] Existing tracking:", existingTracking)
+      const result = await response.json()
 
-    const updateData = {
-      has_arrived: hasArrived,
-      arrived_at: hasArrived ? (existingTracking?.arrived_at || now) : null,
-      is_checked_in: isCheckedIn,
-      checked_in_at: isCheckedIn ? (existingTracking?.checked_in_at || now) : null,
-      has_performed: hasPerformed,
-      performed_at: hasPerformed ? (existingTracking?.performed_at || now) : null,
-      updated_at: now,
-    }
-
-    if (existingTracking) {
-      // Update existing record
-      console.log("[v0] Updating existing record...")
-      const { error } = await supabase
-        .from("audition_tracking")
-        .update(updateData)
-        .eq("application_id", applicationId)
-
-      if (!error) {
-        console.log("[v0] Update successful")
+      if (result.success && result.data) {
         setAuditionTracking((prev) => ({
           ...prev,
-          [applicationId]: {
-            ...prev[applicationId],
-            ...updateData,
-          },
+          [applicationId]: result.data,
         }))
       } else {
-        console.log("[v0] Error updating audition tracking:", error)
+        console.error("Erreur mise à jour statut:", result.error)
       }
-    } else {
-      // Create new record
-      console.log("[v0] Creating new record...")
-      const { data, error } = await supabase
-        .from("audition_tracking")
-        .insert({
-          application_id: applicationId,
-          ...updateData,
-        })
-        .select()
-        .single()
-
-      if (!error && data) {
-        console.log("[v0] Insert successful:", data)
-        setAuditionTracking((prev) => ({
-          ...prev,
-          [applicationId]: data,
-        }))
-      } else {
-        console.log("[v0] Error inserting audition tracking:", error)
-      }
+    } catch (error) {
+      console.error("Erreur réseau:", error)
     }
   }
 
@@ -2021,10 +1981,7 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
                           <div className="flex items-center gap-1 shrink-0">
                             <select
                               value={getCurrentStatus()}
-                              onChange={(e) => {
-                                console.log("[v0] Select onChange triggered, value:", e.target.value, "app.id:", app.id)
-                                handleStatusChange(e.target.value)
-                              }}
+                              onChange={(e) => handleStatusChange(e.target.value)}
                               className="h-7 w-[130px] text-xs rounded border border-input bg-background px-2 focus:outline-none focus:ring-2 focus:ring-ring"
                             >
                               <option value="not_arrived">Non arrivé</option>
