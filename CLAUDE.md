@@ -77,3 +77,29 @@ SMTP configuration is stored in the `smtp_config` database table, not in env var
 ## Build Notes
 
 `next.config.mjs` disables ESLint and TypeScript errors during builds (`ignoreDuringBuilds: true`, `ignoreBuildErrors: true`). Images are unoptimized.
+
+## WIP — Migration Azure (CI/CD)
+
+**Statut :** En cours, non fonctionnel.
+
+La migration de Vercel vers Azure App Service est en cours. Le commit `4080b4e` a lancé la migration, suivi de 5 commits de fix (`540468a` → `e782a2f`).
+
+**Infrastructure cible :**
+- Azure App Service : `app-tremplin-jes` (resource group `rg-tremplin-jes`)
+- Auth : Prisma + NextAuth (remplace Supabase Auth)
+- Storage : Azure Blob Storage (remplace Vercel Blob)
+- DB : PostgreSQL via `DATABASE_URL`
+
+**Workflow CI/CD :** `.github/workflows/deploy.yml`
+- Build Next.js standalone → zip → `az webapp deploy`
+- Auth Azure via `AZURE_CREDENTIALS` (service principal JSON)
+- Secrets requis : `DATABASE_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `NEXT_PUBLIC_SITE_URL`, `AZURE_STORAGE_CONNECTION_STRING`
+
+**Problèmes rencontrés et tentatives :**
+1. `publish-profile` ne marchait pas → remplacé par `azure/login` avec credentials JSON
+2. Extraction `node_modules` cassée sur Azure → passage à `az webapp deploy --type zip`
+3. Ajout `WEBSITE_RUN_FROM_PACKAGE` + clean deploy
+4. Symlinks pnpm non supportés → résolution avant zip
+5. Dernier essai : hoisting des `node_modules` pour compatibilité Azure
+
+**Prochaine étape :** Vérifier les logs Azure App Service pour identifier l'erreur runtime exacte après le dernier fix (`e782a2f`). Si ça ne marche toujours pas, envisager un output standalone avec les dépendances bundlées, ou passer à Azure Container Apps avec Docker.
