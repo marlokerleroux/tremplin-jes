@@ -64,4 +64,5 @@ jobs:
             --resource-group rg-tremplin-jes \
             --name ${{ env.AZURE_WEBAPP_NAME }} \
             --src-path deploy.zip \
-            --type zip
+            --type zip \
+            --clean true
