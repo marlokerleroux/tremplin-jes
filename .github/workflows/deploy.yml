@@ -47,11 +47,6 @@ jobs:
         run: |
           cp -r .next/static .next/standalone/.next/static
           cp -r public .next/standalone/public
-          # Resolve pnpm symlinks - Azure Oryx corrupts symlinks during tar/extract
-          cd .next/standalone
-          cp -rL node_modules node_modules_resolved
-          rm -rf node_modules
-          mv node_modules_resolved node_modules
 
       - name: Create deployment package
         run: |
