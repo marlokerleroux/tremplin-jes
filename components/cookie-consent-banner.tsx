@@ -36,18 +36,17 @@ export function CookieConsentBanner() {
             <h3 className="font-semibold text-lg">Cookies et confidentialité</h3>
             <p className="text-sm text-muted-foreground leading-relaxed">
               Ce site utilise des <strong>cookies techniques</strong> (authentification, session) strictement
-              nécessaires à son fonctionnement. Nous utilisons également des cookies analytiques via Vercel Analytics
-              pour améliorer votre expérience. Vous pouvez accepter ou refuser ces cookies analytiques.{" "}
+              nécessaires à son fonctionnement. Vous pouvez accepter ou refuser les cookies optionnels.{" "}
               <Link href="/privacy" className="text-primary underline hover:text-primary/80">
                 En savoir plus
               </Link>
             </p>
             <div className="flex flex-wrap gap-3">
               <Button onClick={acceptCookies} size="sm">
-                Accepter les cookies analytiques
+                Accepter
               </Button>
               <Button onClick={rejectCookies} variant="outline" size="sm">
-                Refuser les cookies analytiques
+                Refuser
               </Button>
               <Button asChild variant="ghost" size="sm">
                 <Link href="/privacy">Politique de confidentialité</Link>

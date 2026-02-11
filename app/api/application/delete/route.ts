@@ -1,31 +1,20 @@
-import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
+import { auth } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
 
 export async function DELETE() {
   try {
-    const supabase = await createClient()
+    const session = await auth()
 
-    // Get current user
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser()
-
-    if (userError || !user) {
+    if (!session?.user) {
       return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
     }
 
     // Get user's application
-    const { data: application, error: appError } = await supabase
-      .from("applications")
-      .select("id, status")
-      .eq("user_id", user.id)
-      .maybeSingle()
-
-    if (appError) {
-      console.error("[v0] Error fetching application:", appError)
-      return NextResponse.json({ error: "Erreur lors de la récupération de la candidature" }, { status: 500 })
-    }
+    const application = await prisma.application.findUnique({
+      where: { user_id: session.user.id },
+      select: { id: true, status: true },
+    })
 
     if (!application) {
       return NextResponse.json({ error: "Aucune candidature trouvée" }, { status: 404 })
@@ -36,24 +25,10 @@ export async function DELETE() {
       return NextResponse.json({ error: "Impossible de supprimer une candidature validée" }, { status: 403 })
     }
 
-    // Delete technical sheet first (if exists)
-    const { error: techSheetError } = await supabase
-      .from("technical_sheets")
-      .delete()
-      .eq("application_id", application.id)
-
-    if (techSheetError) {
-      console.error("[v0] Error deleting technical sheet:", techSheetError)
-      // Continue anyway, technical sheet might not exist
-    }
-
-    // Delete application
-    const { error: deleteError } = await supabase.from("applications").delete().eq("id", application.id)
-
-    if (deleteError) {
-      console.error("[v0] Error deleting application:", deleteError)
-      return NextResponse.json({ error: "Erreur lors de la suppression de la candidature" }, { status: 500 })
-    }
+    // Delete application (cascade will handle related records: technical_sheets, parental_authorizations, audition_tracking)
+    await prisma.application.delete({
+      where: { id: application.id },
+    })
 
     return NextResponse.json({ success: true })
   } catch (error) {

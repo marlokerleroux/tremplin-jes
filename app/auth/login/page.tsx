@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { createClient } from "@/lib/supabase/client"
+import { signIn } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { redirectAfterAuth } from "@/lib/redirect-after-auth"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -21,21 +20,26 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    const supabase = createClient()
     setIsLoading(true)
     setError(null)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const result = await signIn("credentials", {
         email,
         password,
+        redirect: false,
       })
-      if (error) throw error
 
-      const redirectPath = await redirectAfterAuth()
-      router.push(redirectPath)
+      if (result?.error) {
+        setError("Email ou mot de passe incorrect")
+      } else {
+        const res = await fetch("/api/auth/session")
+        const session = await res.json()
+        const redirectPath = session?.user?.role === "admin" ? "/admin" : "/dashboard"
+        router.push(redirectPath)
+      }
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "Une erreur est survenue")
+      setError("Une erreur est survenue")
     } finally {
       setIsLoading(false)
     }

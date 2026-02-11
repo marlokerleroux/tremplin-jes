@@ -1,21 +1,16 @@
-import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
+import { auth } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
 
 export async function PUT(request: Request) {
   try {
-    const supabase = await createClient()
+    const session = await auth()
 
-    // Check if user is admin
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
+    if (!session?.user) {
       return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
     }
 
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
-
-    if (profile?.role !== "admin") {
+    if (session.user.role !== "admin") {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 })
     }
 
@@ -27,9 +22,9 @@ export async function PUT(request: Request) {
     }
 
     // Update the application
-    const { data, error } = await supabase
-      .from("applications")
-      .update({
+    const data = await prisma.application.update({
+      where: { id: applicationId },
+      data: {
         stage_name: updates.stage_name,
         musical_style: updates.musical_style,
         biography: updates.biography,
@@ -39,16 +34,8 @@ export async function PUT(request: Request) {
         has_stage_experience: updates.has_stage_experience,
         stage_experience_details: updates.stage_experience_details,
         group_members: updates.group_members,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", applicationId)
-      .select()
-      .single()
-
-    if (error) {
-      console.error("Error updating application:", error)
-      return NextResponse.json({ error: "Erreur lors de la mise à jour" }, { status: 500 })
-    }
+      },
+    })
 
     return NextResponse.json({ success: true, data })
   } catch (error) {

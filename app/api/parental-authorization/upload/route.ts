@@ -1,17 +1,13 @@
-import { put } from "@vercel/blob"
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { auth } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
+import { uploadBlob } from "@/lib/azure-blob"
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    const session = await auth()
 
-    // Check authentication
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
+    if (!session?.user) {
       return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
     }
 
@@ -40,53 +36,41 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify the application belongs to the user
-    const { data: application } = await supabase
-      .from("applications")
-      .select("id")
-      .eq("id", applicationId)
-      .eq("user_id", user.id)
-      .single()
+    const application = await prisma.application.findFirst({
+      where: { id: applicationId, user_id: session.user.id },
+    })
 
     if (!application) {
       return NextResponse.json({ error: "Candidature non trouvée" }, { status: 404 })
     }
 
     const filename = `parental-authorization-${applicationId}-member-${memberIndex}-${Date.now()}.pdf`
-    const blob = await put(filename, file, {
-      access: "public",
-    })
+    const arrayBuffer = await file.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+    const blobUrl = await uploadBlob(filename, buffer, file.type)
 
-    const { data: existing } = await supabase
-      .from("parental_authorizations")
-      .select("id")
-      .eq("application_id", applicationId)
-      .eq("member_index", memberIndex)
-      .maybeSingle()
-
-    if (existing) {
-      // Update existing record
-      await supabase
-        .from("parental_authorizations")
-        .update({
-          pdf_url: blob.url,
-          member_name: memberName,
-          validated: false,
-          validated_by: null,
-          validated_at: null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", existing.id)
-    } else {
-      await supabase.from("parental_authorizations").insert({
+    // Upsert parental authorization
+    await prisma.parentalAuthorization.upsert({
+      where: {
+        application_id_member_index: {
+          application_id: applicationId,
+          member_index: memberIndex,
+        },
+      },
+      create: {
         application_id: applicationId,
         member_index: memberIndex,
         member_name: memberName,
-        pdf_url: blob.url,
-      })
-    }
+        pdf_url: blobUrl,
+      },
+      update: {
+        pdf_url: blobUrl,
+        member_name: memberName,
+      },
+    })
 
     return NextResponse.json({
-      url: blob.url,
+      url: blobUrl,
       filename: file.name,
       size: file.size,
     })

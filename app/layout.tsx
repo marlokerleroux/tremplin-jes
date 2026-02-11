@@ -1,7 +1,6 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Montserrat, Geist_Mono } from "next/font/google"
-import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { Suspense } from "react"
 import { CookieConsentBanner } from "@/components/cookie-consent-banner"
@@ -33,7 +32,6 @@ export default function RootLayout({
     <html lang="fr">
       <body className={`font-sans ${montserrat.variable} ${geistMono.variable}`}>
         <Suspense fallback={null}>{children}</Suspense>
-        <Analytics />
         <CookieConsentBanner />
       </body>
     </html>

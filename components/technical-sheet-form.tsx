@@ -3,7 +3,6 @@
 import type React from "react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -61,8 +60,6 @@ export function TechnicalSheetForm({ applicationId, existingSheet }: TechnicalSh
     setIsLoading(true)
     setError(null)
 
-    const supabase = createClient()
-
     try {
       const sheetData = {
         application_id: applicationId,
@@ -77,19 +74,15 @@ export function TechnicalSheetForm({ applicationId, existingSheet }: TechnicalSh
         special_needs: specialNeeds || null,
       }
 
-      if (existingSheet) {
-        // Update existing sheet
-        const { error: updateError } = await supabase
-          .from("technical_sheets")
-          .update(sheetData)
-          .eq("id", existingSheet.id)
+      const res = await fetch("/api/technical-sheet/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(sheetData),
+      })
 
-        if (updateError) throw updateError
-      } else {
-        // Create new sheet
-        const { error: insertError } = await supabase.from("technical_sheets").insert(sheetData)
-
-        if (insertError) throw insertError
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "Erreur lors de l'enregistrement")
       }
 
       router.push("/dashboard")

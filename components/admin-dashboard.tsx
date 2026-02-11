@@ -61,7 +61,7 @@ function NoteDialog({
   )
 }
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
+import { signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -264,61 +264,26 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
   }, [])
 
   const loadTimeSlots = async () => {
-    const supabase = createClient()
-    const { data } = await supabase
-      .from("time_slots")
-      .select("*")
-      .order("date", { ascending: true })
-      .order("start_time", { ascending: true })
-
-    if (data) {
+    const res = await fetch("/api/admin/time-slots")
+    if (res.ok) {
+      const data = await res.json()
       setTimeSlots(data)
     }
   }
 
   const loadScheduleConfig = async () => {
-    const supabase = createClient()
-    const { data } = await supabase.from("schedule_config").select("*").single()
-    if (data) {
+    const res = await fetch("/api/admin/schedule-config")
+    if (res.ok) {
+      const data = await res.json()
       setScheduleConfig(data)
-    } else {
-      // If no schedule_config exists, create one with default values
-      const { data: createdConfig, error } = await supabase
-        .from("schedule_config")
-        .insert([{ is_validated: false }])
-        .select("*")
-        .single()
-      if (!error && createdConfig) {
-        setScheduleConfig(createdConfig)
-      }
     }
   }
 
   const loadSMTPConfig = async () => {
-    const supabase = createClient()
-    const { data } = await supabase.from("smtp_config").select("*").single()
-    if (data) {
-      setSmtpConfig(data)
-    } else {
-      // If no smtp_config exists, create a default one
-      const { data: createdConfig, error } = await supabase
-        .from("smtp_config")
-        .insert([
-          {
-            smtp_host: "",
-            smtp_port: 587,
-            smtp_username: "",
-            smtp_password: "",
-            smtp_from_email: "",
-            smtp_from_name: "",
-            smtp_secure: true,
-          },
-        ])
-        .select("*")
-        .single()
-      if (!error && createdConfig) {
-        setSmtpConfig(createdConfig)
-      }
+    const res = await fetch("/api/admin/smtp-config")
+    if (res.ok) {
+      const data = await res.json()
+      if (data) setSmtpConfig(data)
     }
   }
 
@@ -394,27 +359,17 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
     if (!smtpConfig) return
 
     setIsSavingSMTP(true)
-    const supabase = createClient()
 
-    const { error } = await supabase
-      .from("smtp_config")
-      .update({
-        smtp_host: smtpConfig.smtp_host,
-        smtp_port: smtpConfig.smtp_port,
-        smtp_username: smtpConfig.smtp_username,
-        smtp_password: smtpConfig.smtp_password,
-        smtp_from_email: smtpConfig.smtp_from_email,
-        smtp_from_name: smtpConfig.smtp_from_name,
-        smtp_secure: smtpConfig.smtp_secure,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", smtpConfig.id)
+    const res = await fetch("/api/admin/smtp-config", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(smtpConfig),
+    })
 
-    if (!error) {
+    if (res.ok) {
       alert("Paramètres SMTP enregistrés avec succès")
     } else {
       alert("Erreur lors de l'enregistrement des paramètres SMTP")
-      console.error("SMTP save error:", error)
     }
 
     setIsSavingSMTP(false)
@@ -449,111 +404,55 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
   }
 
   const handleSignOut = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push("/")
+    signOut({ callbackUrl: "/" })
+  }
+
+  const refreshApplications = async () => {
+    const res = await fetch("/api/admin/applications/refresh")
+    if (res.ok) {
+      const data = await res.json()
+      setApplications(data as Application[])
+    }
   }
 
   const assignTimeSlot = async (applicationId: string, timeSlotId: string) => {
     setIsUpdating(true)
-    const supabase = createClient()
 
-    console.log("[v0] Assigning time slot:", { applicationId, timeSlotId })
-    console.log("[v0] Schedule validated:", scheduleConfig?.is_validated)
+    const res = await fetch("/api/admin/time-slots/assign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ applicationId, timeSlotId }),
+    })
 
-    // Update application with time slot
-    const { error: appError } = await supabase
-      .from("applications")
-      .update({ time_slot_id: timeSlotId })
-      .eq("id", applicationId)
-
-    // Mark time slot as unavailable
-    const { error: slotError } = await supabase.from("time_slots").update({ is_available: false }).eq("id", timeSlotId)
-
-    if (!appError && !slotError) {
+    if (res.ok) {
       if (scheduleConfig?.is_validated) {
-        console.log("[v0] Planning is validated, sending email...")
-        try {
-          const { data: appData } = await supabase
-            .from("applications")
-            .select("stage_name, user_id, profiles!applications_user_id_fkey(email, first_name, last_name)")
-            .eq("id", applicationId)
-            .single()
-
-          const { data: slotData } = await supabase.from("time_slots").select("*").eq("id", timeSlotId).single()
-
-          if (appData && appData.profiles && slotData) {
-            const profile = appData.profiles as any
-            console.log("[v0] Sending time slot email to:", profile.email)
-
-            const response = await fetch("/api/email/send", {
+        // Find the app to get profile info for email
+        const app = applications.find((a) => a.id === applicationId)
+        const slot = timeSlots.find((s) => s.id === timeSlotId)
+        if (app?.profiles && slot) {
+          try {
+            await fetch("/api/email/send", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 type: "time_slot_assigned",
-                email: profile.email,
-                firstName: profile.first_name,
-                lastName: profile.last_name,
-                date: slotData.date,
-                time: slotData.start_time,
+                email: app.profiles.email,
+                firstName: app.profiles.first_name,
+                lastName: app.profiles.last_name,
+                date: slot.date,
+                time: slot.start_time,
                 venue: "Espace Léo Ferré, Brest",
               }),
             })
-
-            const result = await response.json()
-            console.log("[v0] Email sent to", profile.email, "- result:", result)
-          } else {
-            console.log("[v0] Missing data for email:", {
-              hasAppData: !!appData,
-              hasProfiles: !!appData?.profiles,
-              hasSlotData: !!slotData,
-            })
+          } catch (emailError) {
+            console.error("Failed to send time slot email:", emailError)
           }
-        } catch (emailError) {
-          console.error("[v0] Failed to send time slot email:", emailError)
         }
-      } else {
-        console.log("[v0] Planning not validated, skipping email")
       }
 
-      // Refresh data
       await loadTimeSlots()
-      const { data: updatedApps } = await supabase
-        .from("applications")
-        .select(
-          `
-          *,
-          profiles:user_id (
-            first_name,
-            last_name,
-            email,
-            street_address,
-            city,
-            postal_code,
-            phone,
-            role
-          ),
-          technical_sheets(*),
-          parental_authorizations(*)
-        `,
-        )
-        .neq("profiles.role", "admin")
-        .order("created_at", { ascending: false })
-
-      if (updatedApps) {
-        const { data: techSheets } = await supabase.from("technical_sheets").select("*")
-        const { data: parentalAuths } = await supabase.from("parental_authorizations").select("*")
-
-        const appsWithDocs = updatedApps.map((app) => ({
-          ...app,
-          technical_sheets: techSheets?.filter((ts) => ts.application_id === app.id) || [],
-          parental_authorizations: parentalAuths?.filter((pa) => pa.application_id === app.id) || [],
-        }))
-
-        setApplications(appsWithDocs as Application[])
-      }
+      await refreshApplications()
     } else {
-      console.error("Error assigning time slot:", { appError, slotError })
       alert("Erreur lors de l'attribution du créneau. Veuillez réessayer.")
     }
 
@@ -562,53 +461,17 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
 
   const removeTimeSlot = async (applicationId: string, timeSlotId: string) => {
     setIsUpdating(true)
-    const supabase = createClient()
 
-    const { error: appError } = await supabase
-      .from("applications")
-      .update({ time_slot_id: null })
-      .eq("id", applicationId)
+    const res = await fetch("/api/admin/time-slots/remove", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ applicationId }),
+    })
 
-    const { error: slotError } = await supabase.from("time_slots").update({ is_available: true }).eq("id", timeSlotId)
-
-    if (!appError && !slotError) {
+    if (res.ok) {
       await loadTimeSlots()
-      const { data: updatedApps } = await supabase
-        .from("applications")
-        .select(
-          `
-          *,
-          profiles:user_id (
-            first_name,
-            last_name,
-            email,
-            street_address,
-            city,
-            postal_code,
-            phone,
-            role
-          ),
-          technical_sheets(*),
-          parental_authorizations(*)
-        `,
-        )
-        .neq("profiles.role", "admin")
-        .order("created_at", { ascending: false })
-
-      if (updatedApps) {
-        const { data: techSheets } = await supabase.from("technical_sheets").select("*")
-        const { data: parentalAuths } = await supabase.from("parental_authorizations").select("*")
-
-        const appsWithDocs = updatedApps.map((app) => ({
-          ...app,
-          technical_sheets: techSheets?.filter((ts) => ts.application_id === app.id) || [],
-          parental_authorizations: parentalAuths?.filter((pa) => pa.application_id === app.id) || [],
-        }))
-
-        setApplications(appsWithDocs as Application[])
-      }
+      await refreshApplications()
     } else {
-      console.error("Error removing time slot:", { appError, slotError })
       alert("Erreur lors du retrait du créneau. Veuillez réessayer.")
     }
 
@@ -617,24 +480,10 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
 
   const validateSchedule = async () => {
     setIsUpdating(true)
-    const supabase = createClient()
 
-    const { data: user } = await supabase.auth.getUser()
-    if (!user.user) return
+    const res = await fetch("/api/admin/schedule-config/validate", { method: "POST" })
 
-    const { error } = await supabase.from("schedule_config").upsert(
-      {
-        id: scheduleConfig?.id || crypto.randomUUID(),
-        is_validated: true,
-        validated_at: new Date().toISOString(),
-        validated_by: user.user.id,
-      },
-      {
-        onConflict: "id",
-      },
-    )
-
-    if (!error) {
+    if (res.ok) {
       await loadScheduleConfig()
 
       // Get all applications with assigned time slots
@@ -689,24 +538,15 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
 
   const resetSchedule = async () => {
     setIsUpdating(true)
-    const supabase = createClient()
 
-    const { error } = await supabase.from("schedule_config").upsert(
-      {
-        id: scheduleConfig?.id || crypto.randomUUID(),
-        is_validated: false,
-        validated_at: null,
-        validated_by: null,
-      },
-      {
-        onConflict: "id",
-      },
-    )
+    const res = await fetch("/api/admin/schedule-config/reset", { method: "POST" })
 
-    if (!error) {
+    if (res.ok) {
       await loadScheduleConfig()
+      await refreshApplications()
+      await loadTimeSlots()
     } else {
-      console.error("Error resetting schedule:", error)
+      console.error("Error resetting schedule")
       alert("Erreur lors de la réinitialisation du planning. Veuillez réessayer.")
     }
 
@@ -783,11 +623,14 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
     }
 
     setIsUpdating(true)
-    const supabase = createClient()
 
-    const { error } = await supabase.from("applications").update({ status: newStatus }).eq("id", applicationId)
+    const res = await fetch("/api/admin/applications/status", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ applicationId, status: newStatus }),
+    })
 
-    if (!error) {
+    if (res.ok) {
       setApplications(applications.map((app) => (app.id === applicationId ? { ...app, status: newStatus } : app)))
 
       if (newStatus === "validated") {
@@ -1007,43 +850,17 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
         throw new Error(result.error || "Erreur lors de l'upload")
       }
 
-      const supabase = createClient()
-
-      // Wait a bit for database to propagate
-      await new Promise((resolve) => setTimeout(resolve, 500))
-
-      const { data: refreshedApp, error: fetchError } = await supabase
-        .from("applications")
-        .select(
-          `
-          *,
-          profiles:user_id (
-            first_name,
-            last_name,
-            email,
-            street_address,
-            city,
-            postal_code,
-            phone,
-            role
-          ),
-          technical_sheets (*),
-          parental_authorizations (*),
-          time_slots (*)
-        `,
-        )
-        .eq("id", uploadingApplication.id)
-        .single()
-
-      console.log("[v0] Refreshed application:", refreshedApp)
-      console.log("[v0] Fetch error:", fetchError)
-
-      if (refreshedApp) {
-        // Update state with refreshed data
-        setApplications((prev) => prev.map((app) => (app.id === uploadingApplication.id ? refreshedApp : app)))
-        setUploadingApplication(refreshedApp)
-        if (selectedApplication?.id === uploadingApplication.id) {
-          setSelectedApplication(refreshedApp)
+      // Refresh applications from server
+      const refreshRes = await fetch("/api/admin/applications/refresh")
+      if (refreshRes.ok) {
+        const allApps = await refreshRes.json()
+        setApplications(allApps)
+        const refreshedApp = allApps.find((a: any) => a.id === uploadingApplication.id)
+        if (refreshedApp) {
+          setUploadingApplication(refreshedApp)
+          if (selectedApplication?.id === uploadingApplication.id) {
+            setSelectedApplication(refreshedApp)
+          }
         }
       }
 
@@ -1089,43 +906,17 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
         throw new Error(result.error || "Erreur lors de l'upload")
       }
 
-      const supabase = createClient()
-
-      // Wait a bit for database to propagate
-      await new Promise((resolve) => setTimeout(resolve, 500))
-
-      const { data: refreshedApp, error: fetchError } = await supabase
-        .from("applications")
-        .select(
-          `
-          *,
-          profiles:user_id (
-            first_name,
-            last_name,
-            email,
-            street_address,
-            city,
-            postal_code,
-            phone,
-            role
-          ),
-          technical_sheets (*),
-          parental_authorizations (*),
-          time_slots (*)
-        `,
-        )
-        .eq("id", uploadingApplication.id)
-        .single()
-
-      console.log("[v0] Refreshed application:", refreshedApp)
-      console.log("[v0] Fetch error:", fetchError)
-
-      if (refreshedApp) {
-        // Update state with refreshed data
-        setApplications((prev) => prev.map((app) => (app.id === uploadingApplication.id ? refreshedApp : app)))
-        setUploadingApplication(refreshedApp)
-        if (selectedApplication?.id === uploadingApplication.id) {
-          setSelectedApplication(refreshedApp)
+      // Refresh applications from server
+      const refreshRes = await fetch("/api/admin/applications/refresh")
+      if (refreshRes.ok) {
+        const allApps = await refreshRes.json()
+        setApplications(allApps)
+        const refreshedApp = allApps.find((a: any) => a.id === uploadingApplication.id)
+        if (refreshedApp) {
+          setUploadingApplication(refreshedApp)
+          if (selectedApplication?.id === uploadingApplication.id) {
+            setSelectedApplication(refreshedApp)
+          }
         }
       }
 
@@ -1225,31 +1016,11 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
         throw new Error(error.error || "Erreur lors de la mise à jour")
       }
 
-      // Refresh applications
-      const supabase = createClient()
-      const { data: refreshedApp } = await supabase
-        .from("applications")
-        .select(`
-          *,
-          profiles:user_id (
-            first_name,
-            last_name,
-            email,
-            street_address,
-            city,
-            postal_code,
-            phone,
-            role
-          ),
-          technical_sheets (*),
-          parental_authorizations (*),
-          time_slots (*)
-        `)
-        .eq("id", editingApplication.id)
-        .single()
-
-      if (refreshedApp) {
-        setApplications((prev) => prev.map((app) => (app.id === editingApplication.id ? refreshedApp : app)))
+      // Refresh applications from server
+      const refreshRes = await fetch("/api/admin/applications/refresh")
+      if (refreshRes.ok) {
+        const allApps = await refreshRes.json()
+        setApplications(allApps)
       }
 
       setIsEditDialogOpen(false)

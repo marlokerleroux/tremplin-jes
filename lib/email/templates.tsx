@@ -275,3 +275,34 @@ export function getTimeSlotAssignedEmail(
     text: `Bonjour ${data.firstName},\n\nVotre créneau d'audition a été défini :\nDate : ${data.date}\nHeure : ${data.time}\nLieu : ${data.venue}\n\nPrésentez-vous 15 minutes avant votre créneau.\n\nTremplin Jeunes en Scène - Organisé par Pass'Musique`,
   }
 }
+
+// 6. Email de réinitialisation de mot de passe
+export function getPasswordResetEmail(
+  data: BaseEmailData & { resetUrl: string },
+): EmailTemplate {
+  const content = `
+    <h2>Réinitialisation de votre mot de passe</h2>
+    <p>Bonjour ${data.firstName},</p>
+    <p>Vous avez demandé la réinitialisation de votre mot de passe.</p>
+
+    <div class="info-box">
+      <strong>Ce lien est valable 1 heure.</strong><br>
+      Si vous n'avez pas demandé cette réinitialisation, ignorez simplement cet email.
+    </div>
+
+    <a href="${data.resetUrl}" class="button">
+      Réinitialiser mon mot de passe
+    </a>
+
+    <p style="margin-top: 30px; color: #666; font-size: 14px;">
+      Si le bouton ne fonctionne pas, copiez-collez ce lien dans votre navigateur :<br>
+      <a href="${data.resetUrl}" style="color: #246BDC;">${data.resetUrl}</a>
+    </p>
+  `
+
+  return {
+    subject: "Réinitialisation de votre mot de passe - Tremplin Jeunes en Scène",
+    html: getEmailLayout(content),
+    text: `Bonjour ${data.firstName},\n\nVous avez demandé la réinitialisation de votre mot de passe.\n\nCliquez sur ce lien pour réinitialiser votre mot de passe : ${data.resetUrl}\n\nCe lien est valable 1 heure.\n\nTremplin Jeunes en Scène - Organisé par Pass'Musique`,
+  }
+}

@@ -1,10 +1,10 @@
-"use server"
+import NextAuth from "next-auth"
+import { authConfig } from "@/lib/auth-config"
 
-import { createClient } from "@/lib/supabase/server"
-import { redirect } from "next/navigation"
+export const { handlers, auth, signIn, signOut } = NextAuth(authConfig)
 
 export async function handleSignOut() {
-  const supabase = await createClient()
-  await supabase.auth.signOut()
-  redirect("/auth/login")
+  "use server"
+  const { signOut: nextAuthSignOut } = await import("@/lib/auth")
+  await nextAuthSignOut({ redirectTo: "/auth/login" })
 }

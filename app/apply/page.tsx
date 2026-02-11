@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+import { requireAuth } from "@/lib/auth-helpers"
+import { prisma } from "@/lib/prisma"
 import { RegistrationForm } from "@/components/registration-form"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -7,15 +8,7 @@ import { AlertCircle } from "lucide-react"
 import Link from "next/link"
 
 export default async function ApplyPage() {
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect("/auth/login")
-  }
+  const session = await requireAuth()
 
   const registrationsClosed = new Date() >= new Date("2026-01-01T00:00:00")
 
@@ -46,11 +39,10 @@ export default async function ApplyPage() {
   }
 
   // Check if user already has an application
-  const { data: existingApplication } = await supabase
-    .from("applications")
-    .select("id")
-    .eq("user_id", user.id)
-    .maybeSingle()
+  const existingApplication = await prisma.application.findUnique({
+    where: { user_id: session.user.id },
+    select: { id: true },
+  })
 
   if (existingApplication) {
     redirect("/dashboard")
@@ -65,7 +57,7 @@ export default async function ApplyPage() {
             Complétez votre candidature pour le Tremplin Jeunes en Scène
           </p>
         </div>
-        <RegistrationForm userId={user.id} />
+        <RegistrationForm userId={session.user.id} />
       </div>
     </div>
   )

@@ -1,31 +1,24 @@
 import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+import { requireAuth } from "@/lib/auth-helpers"
+import { prisma } from "@/lib/prisma"
 import { TechnicalSheetUpload } from "@/components/technical-sheet-upload"
 
 export default async function TechnicalSheetPage() {
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect("/auth/login")
-  }
+  const session = await requireAuth()
 
   // Get user application
-  const { data: application } = await supabase.from("applications").select("*").eq("user_id", user.id).maybeSingle()
+  const application = await prisma.application.findUnique({
+    where: { user_id: session.user.id },
+  })
 
   if (!application) {
     redirect("/dashboard")
   }
 
   // Get existing technical sheet if any
-  const { data: existingSheet } = await supabase
-    .from("technical_sheets")
-    .select("*")
-    .eq("application_id", application.id)
-    .maybeSingle()
+  const existingSheet = await prisma.technicalSheet.findFirst({
+    where: { application_id: application.id },
+  })
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-pink-50 py-12 px-4">

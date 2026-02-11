@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { createClient } from "@/lib/supabase/client"
+import { signIn } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -13,7 +13,6 @@ import { AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { redirectAfterAuth } from "@/lib/redirect-after-auth"
 
 export default function SignUpPage() {
   const registrationsClosed = new Date() >= new Date("2026-01-01T00:00:00")
@@ -36,7 +35,6 @@ export default function SignUpPage() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
-    const supabase = createClient()
     setIsLoading(true)
     setError(null)
 
@@ -63,46 +61,52 @@ export default function SignUpPage() {
     }
 
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-            street_address: formData.streetAddress,
-            city: formData.city,
-            postal_code: formData.postalCode,
-            phone: formData.phone,
-            accepted_privacy_policy: formData.acceptedPrivacyPolicy,
-            privacy_policy_accepted_at: new Date().toISOString(),
-          },
-        },
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          streetAddress: formData.streetAddress,
+          city: formData.city,
+          postalCode: formData.postalCode,
+          phone: formData.phone,
+          acceptedPrivacyPolicy: formData.acceptedPrivacyPolicy,
+        }),
       })
-      if (error) throw error
 
-      if (data.user) {
-        try {
-          await fetch("/api/email/send", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              type: "welcome",
-              email: formData.email,
-              firstName: formData.firstName,
-              lastName: formData.lastName,
-            }),
-          })
-        } catch (emailError) {
-          console.error("Failed to send welcome email:", emailError)
-        }
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+
+      // Send welcome email
+      try {
+        await fetch("/api/email/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "welcome",
+            email: formData.email,
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+          }),
+        })
+      } catch (emailError) {
+        console.error("Failed to send welcome email:", emailError)
       }
 
-      if (data.user && data.session) {
-        const redirectPath = await redirectAfterAuth()
-        router.push(redirectPath)
+      // Auto-login after signup
+      const signInResult = await signIn("credentials", {
+        email: formData.email,
+        password: formData.password,
+        redirect: false,
+      })
+
+      if (signInResult?.error) {
+        router.push("/auth/login")
       } else {
-        router.push("/auth/signup-success")
+        router.push("/dashboard")
       }
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "Une erreur est survenue")

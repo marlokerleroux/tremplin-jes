@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+import { requireAuth } from "@/lib/auth-helpers"
+import { prisma } from "@/lib/prisma"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -10,67 +11,34 @@ import Image from "next/image"
 import { DeleteApplicationButton } from "@/components/delete-application-button"
 
 export default async function DashboardPage() {
-  const supabase = await createClient()
+  const session = await requireAuth()
 
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect("/auth/login")
-  }
-
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle()
-
-  if (profile?.role === "admin") {
+  if (session.user.role === "admin") {
     redirect("/admin")
   }
 
   // Get user profile
-  const { data: fullProfile } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle()
+  const fullProfile = await prisma.profile.findUnique({ where: { id: session.user.id } })
 
-  const { data: application } = await supabase
-    .from("applications")
-    .select(`
-      *,
-      time_slots!applications_time_slot_id_fkey (
-        id,
-        date,
-        start_time,
-        end_time
-      ),
-      technical_sheets (
-        id,
-        pdf_url,
-        created_at
-      ),
-      parental_authorizations (
-        id,
-        member_index,
-        member_name,
-        pdf_url,
-        created_at
-      )
-    `)
-    .eq("user_id", user.id)
-    .maybeSingle()
+  const application = await prisma.application.findUnique({
+    where: { user_id: session.user.id },
+    include: {
+      time_slot: true,
+      technical_sheets: true,
+      parental_authorizations: true,
+    },
+  }) as any
 
-  if (application && application.technical_sheets && !Array.isArray(application.technical_sheets)) {
-    application.technical_sheets = [application.technical_sheets]
+  // Map time_slot to time_slots for template compatibility
+  if (application) {
+    application.time_slots = application.time_slot
   }
 
-  if (application && application.parental_authorizations && !Array.isArray(application.parental_authorizations)) {
-    application.parental_authorizations = [application.parental_authorizations]
-  }
+  const scheduleConfigRecord = await prisma.scheduleConfig.findFirst({
+    orderBy: { created_at: "desc" },
+  })
 
-  const { data: scheduleConfigData } = await supabase
-    .from("schedule_config")
-    .select("is_validated")
-    .order("created_at", { ascending: false })
-    .limit(1)
-
-  const scheduleConfig = scheduleConfigData && scheduleConfigData.length > 0 ? scheduleConfigData[0] : null
+  const scheduleConfig = scheduleConfigRecord || null
 
   const minorMembers = application
     ? (() => {

@@ -1,5 +1,6 @@
-import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
+import { requireAuth } from "@/lib/auth-helpers"
+import { prisma } from "@/lib/prisma"
 import { ParentalAuthorizationUpload } from "@/components/parental-authorization-upload"
 
 export default async function ParentalAuthorizationPage({
@@ -7,31 +8,28 @@ export default async function ParentalAuthorizationPage({
 }: {
   searchParams: { memberIndex?: string; memberName?: string }
 }) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect("/auth/login")
-  }
+  const session = await requireAuth()
 
   const memberIndex = searchParams.memberIndex ? Number.parseInt(searchParams.memberIndex) : 0
   const memberName = searchParams.memberName || "Candidat"
 
   // Récupérer l'application de l'utilisateur
-  const { data: application } = await supabase.from("applications").select("*").eq("user_id", user.id).single()
+  const application = await prisma.application.findUnique({
+    where: { user_id: session.user.id },
+  })
 
   if (!application) {
     redirect("/apply")
   }
 
-  const { data: authorization } = await supabase
-    .from("parental_authorizations")
-    .select("*")
-    .eq("application_id", application.id)
-    .eq("member_index", memberIndex)
-    .maybeSingle()
+  const authorization = await prisma.parentalAuthorization.findUnique({
+    where: {
+      application_id_member_index: {
+        application_id: application.id,
+        member_index: memberIndex,
+      },
+    },
+  })
 
   // Vérifier si la candidature est validée (verrouillée)
   const isLocked = application.status === "validated"

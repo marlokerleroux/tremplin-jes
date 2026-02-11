@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+import { prisma } from "@/lib/prisma"
 import { sendEmail, type SMTPConfig } from "./mailer"
 import {
   getWelcomeEmail,
@@ -6,16 +6,16 @@ import {
   getTechnicalSheetSubmittedEmail,
   getApplicationValidatedEmail,
   getTimeSlotAssignedEmail,
+  getPasswordResetEmail,
 } from "./templates"
 
 // Récupérer la configuration SMTP depuis la base de données
 async function getSMTPConfig(): Promise<SMTPConfig | null> {
   try {
-    const supabase = await createClient()
-    const { data, error } = await supabase.from("smtp_config").select("*").single()
+    const data = await prisma.smtpConfig.findFirst()
 
-    if (error || !data) {
-      console.error("[v0] Error fetching SMTP config:", error)
+    if (!data) {
+      console.error("[v0] No SMTP config found in database")
       return null
     }
 
@@ -105,5 +105,22 @@ export async function sendTimeSlotAssignedEmail(
   }
 
   const template = getTimeSlotAssignedEmail({ firstName, lastName, date, time, venue })
+  return await sendEmail(email, template, smtpConfig)
+}
+
+// 6. Envoyer l'email de réinitialisation de mot de passe
+export async function sendPasswordResetEmail(
+  email: string,
+  firstName: string,
+  lastName: string,
+  resetUrl: string,
+) {
+  const smtpConfig = await getSMTPConfig()
+  if (!smtpConfig) {
+    console.error("[v0] SMTP not configured, skipping password reset email")
+    return { success: false, error: "SMTP not configured" }
+  }
+
+  const template = getPasswordResetEmail({ firstName, lastName, resetUrl })
   return await sendEmail(email, template, smtpConfig)
 }

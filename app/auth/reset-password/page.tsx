@@ -1,14 +1,13 @@
 "use client"
 
 import type React from "react"
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { useState } from "react"
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState("")
@@ -16,30 +15,20 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [isValidSession, setIsValidSession] = useState(false)
   const router = useRouter()
-
-  useEffect(() => {
-    const checkSession = async () => {
-      const supabase = createClient()
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-
-      if (session) {
-        setIsValidSession(true)
-      } else {
-        setError("Lien de réinitialisation invalide ou expiré. Veuillez demander un nouveau lien.")
-      }
-    }
-
-    checkSession()
-  }, [])
+  const searchParams = useSearchParams()
+  const token = searchParams.get("token")
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError(null)
+
+    if (!token) {
+      setError("Lien de réinitialisation invalide ou expiré. Veuillez demander un nouveau lien.")
+      setIsLoading(false)
+      return
+    }
 
     if (password !== confirmPassword) {
       setError("Les mots de passe ne correspondent pas")
@@ -54,12 +43,14 @@ export default function ResetPasswordPage() {
     }
 
     try {
-      const supabase = createClient()
-      const { error } = await supabase.auth.updateUser({
-        password: password,
+      const res = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, password }),
       })
 
-      if (error) throw error
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
 
       setSuccess(true)
 
@@ -84,7 +75,7 @@ export default function ResetPasswordPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {!isValidSession && error ? (
+            {!token ? (
               <div className="space-y-4">
                 <div className="p-4 bg-red-50 border border-red-200 rounded-md">
                   <p className="text-sm text-red-800">{error}</p>

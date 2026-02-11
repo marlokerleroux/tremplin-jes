@@ -1,69 +1,40 @@
-import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+import { requireAdmin } from "@/lib/auth-helpers"
+import { prisma } from "@/lib/prisma"
 import { AdminDashboard } from "@/components/admin-dashboard"
 
 export default async function AdminPage() {
-  const supabase = await createClient()
+  await requireAdmin()
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const applications = await prisma.application.findMany({
+    include: {
+      profile: {
+        select: {
+          first_name: true,
+          last_name: true,
+          email: true,
+          street_address: true,
+          city: true,
+          postal_code: true,
+          phone: true,
+          role: true,
+        },
+      },
+      technical_sheets: true,
+      parental_authorizations: true,
+    },
+    orderBy: { created_at: "desc" },
+  })
 
-  if (!user) {
-    redirect("/auth/login")
-  }
-
-  // Check if user is admin
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle()
-
-  if (profile?.role !== "admin") {
-    redirect("/dashboard")
-  }
-
-  const { data: applications, error } = await supabase
-    .from("applications")
-    .select(
-      `
-      *,
-      profiles:user_id (
-        first_name,
-        last_name,
-        email,
-        street_address,
-        city,
-        postal_code,
-        phone,
-        role
-      )
-    `,
-    )
-    .order("created_at", { ascending: false })
-
-  if (error) {
-    console.error("Error fetching applications:", error)
-  }
-
-  const nonAdminApplications = applications?.filter((app) => app.profiles?.role !== "admin")
-
-  const { data: technicalSheets, error: techError } = await supabase.from("technical_sheets").select("*")
-  const { data: parentalAuths, error: parentalError } = await supabase.from("parental_authorizations").select("*")
-
-  if (techError) {
-    console.error("Error fetching technical sheets:", techError)
-  }
-  if (parentalError) {
-    console.error("Error fetching parental authorizations:", parentalError)
-  }
-
-  const applicationsWithDocs = nonAdminApplications?.map((app) => ({
-    ...app,
-    technical_sheets: technicalSheets?.filter((ts) => ts.application_id === app.id) || [],
-    parental_authorizations: parentalAuths?.filter((pa) => pa.application_id === app.id) || [],
-  }))
+  const nonAdminApplications = applications
+    .filter((app) => app.profile?.role !== "admin")
+    .map((app) => ({
+      ...app,
+      profiles: app.profile,
+    }))
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-pink-50">
-      <AdminDashboard applications={applicationsWithDocs || []} />
+      <AdminDashboard applications={nonAdminApplications || []} />
     </div>
   )
 }

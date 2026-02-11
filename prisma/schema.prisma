@@ -1,0 +1,160 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Profile {
+  id                        String    @id @default(uuid()) @db.Uuid
+  email                     String    @unique
+  password_hash             String
+  first_name                String
+  last_name                 String
+  street_address            String?
+  city                      String?
+  postal_code               String?
+  phone                     String?
+  role                      String    @default("user") // "admin" | "user"
+  accepted_privacy_policy   Boolean   @default(false)
+  privacy_policy_accepted_at DateTime?
+  created_at                DateTime  @default(now())
+  updated_at                DateTime  @updatedAt
+
+  application Application?
+
+  @@map("profiles")
+}
+
+model Application {
+  id                       String    @id @default(uuid()) @db.Uuid
+  user_id                  String    @unique @db.Uuid
+  application_type         String    // "solo" | "group"
+  stage_name               String
+  group_members            Json?
+  biography                String
+  musical_style            String
+  instagram                String?
+  how_did_you_hear         String?
+  has_original_composition Boolean   @default(false)
+  is_sacem_registered      Boolean?
+  allows_broadcast         Boolean   @default(false)
+  has_stage_experience     Boolean   @default(false)
+  stage_experience_details String?
+  preferred_audition_date  String?
+  accepted_rules           Boolean   @default(false)
+  status                   String    @default("pending") // "pending" | "validated" | "rejected"
+  time_slot_id             String?   @unique @db.Uuid
+  created_at               DateTime  @default(now())
+  updated_at               DateTime  @updatedAt
+
+  profile                  Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  time_slot                TimeSlot? @relation(fields: [time_slot_id], references: [id])
+  technical_sheets         TechnicalSheet[]
+  parental_authorizations  ParentalAuthorization[]
+  audition_tracking        AuditionTracking?
+
+  @@map("applications")
+}
+
+model TimeSlot {
+  id           String    @id @default(uuid()) @db.Uuid
+  date         String    // stored as "YYYY-MM-DD"
+  start_time   String    // stored as "HH:MM"
+  end_time     String    // stored as "HH:MM"
+  is_available Boolean   @default(true)
+  created_at   DateTime  @default(now())
+
+  application  Application?
+
+  @@map("time_slots")
+}
+
+model TechnicalSheet {
+  id             String    @id @default(uuid()) @db.Uuid
+  application_id String    @db.Uuid
+  pdf_url        String?
+  // Form fields (if filled via form instead of PDF upload)
+  sound_engineer String?
+  instruments    Json?
+  microphones    Json?
+  monitoring     String?
+  notes          String?
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+
+  application    Application @relation(fields: [application_id], references: [id], onDelete: Cascade)
+
+  @@map("technical_sheets")
+}
+
+model ParentalAuthorization {
+  id             String    @id @default(uuid()) @db.Uuid
+  application_id String    @db.Uuid
+  member_index   Int       @default(0)
+  member_name    String?
+  pdf_url        String
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+
+  application    Application @relation(fields: [application_id], references: [id], onDelete: Cascade)
+
+  @@unique([application_id, member_index])
+  @@map("parental_authorizations")
+}
+
+model AuditionTracking {
+  id             String    @id @default(uuid()) @db.Uuid
+  application_id String    @unique @db.Uuid
+  has_arrived    Boolean   @default(false)
+  arrived_at     DateTime?
+  is_checked_in  Boolean   @default(false)
+  checked_in_at  DateTime?
+  has_performed  Boolean   @default(false)
+  performed_at   DateTime?
+  notes          String?
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+
+  application    Application @relation(fields: [application_id], references: [id], onDelete: Cascade)
+
+  @@map("audition_tracking")
+}
+
+model ScheduleConfig {
+  id           String    @id @default(uuid()) @db.Uuid
+  is_validated Boolean   @default(false)
+  venue        String?   @default("Espace Léo Ferré, Brest")
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+
+  @@map("schedule_config")
+}
+
+model SmtpConfig {
+  id             String  @id @default(uuid()) @db.Uuid
+  smtp_host      String
+  smtp_port      Int     @default(587)
+  smtp_username  String
+  smtp_password  String
+  smtp_from_email String
+  smtp_from_name String  @default("Tremplin Jeunes en Scène")
+  smtp_secure    Boolean @default(false)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  @@map("smtp_config")
+}
+
+model PasswordResetToken {
+  id         String   @id @default(uuid()) @db.Uuid
+  profile_id String   @db.Uuid
+  token      String   @unique
+  expires_at DateTime
+  used       Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  @@map("password_reset_tokens")
+}

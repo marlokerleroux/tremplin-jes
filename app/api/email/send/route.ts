@@ -5,6 +5,7 @@ import {
   sendTechnicalSheetSubmittedEmail,
   sendApplicationValidatedEmail,
   sendTimeSlotAssignedEmail,
+  sendPasswordResetEmail,
 } from "@/lib/email/notifications"
 
 export async function POST(request: NextRequest) {
@@ -31,6 +32,10 @@ export async function POST(request: NextRequest) {
 
       case "time_slot_assigned":
         await sendTimeSlotAssignedEmail(data.email, data.firstName, data.lastName, data.date, data.time, data.venue)
+        break
+
+      case "password_reset":
+        await sendPasswordResetEmail(data.email, data.firstName, data.lastName, data.resetUrl)
         break
 
       default:

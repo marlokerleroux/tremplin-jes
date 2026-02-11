@@ -3,7 +3,6 @@
 import type React from "react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -185,68 +184,53 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
       }
     }
 
-    const supabase = createClient()
-
     try {
       const membersData =
         applicationType === "solo" ? [{ firstName: "", lastName: "", birthDate: soloBirthDate }] : groupMembers
 
-      const { error: insertError } = await supabase.from("applications").insert({
-        user_id: userId,
-        application_type: applicationType,
-        stage_name: stageName,
-        group_members: membersData,
-        biography,
-        musical_style: musicalStyle,
-        instagram: instagram || null,
-        how_did_you_hear: howDidYouHear || null,
-        has_original_composition: hasOriginalComposition,
-        is_sacem_registered: hasOriginalComposition ? isSacemRegistered : null,
-        allows_broadcast: allowsBroadcast,
-        has_stage_experience: hasStageExperience,
-        stage_experience_details: hasStageExperience ? stageExperienceDetails : null,
-        preferred_audition_date: preferredAuditionDate || null,
-        accepted_rules: acceptedRules,
-        status: "pending",
+      const res = await fetch("/api/application/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          application_type: applicationType,
+          stage_name: stageName,
+          group_members: membersData,
+          biography,
+          musical_style: musicalStyle,
+          instagram: instagram || null,
+          how_did_you_hear: howDidYouHear || null,
+          has_original_composition: hasOriginalComposition,
+          is_sacem_registered: hasOriginalComposition ? isSacemRegistered : null,
+          allows_broadcast: allowsBroadcast,
+          has_stage_experience: hasStageExperience,
+          stage_experience_details: hasStageExperience ? stageExperienceDetails : null,
+          preferred_audition_date: preferredAuditionDate || null,
+          accepted_rules: acceptedRules,
+        }),
       })
 
-      if (insertError) {
-        if (insertError.code === "23505") {
-          // Unique constraint violation
-          setError(
-            "Vous avez déjà soumis une candidature. Vous ne pouvez soumettre qu'une seule candidature par édition.",
-          )
-        } else {
-          throw insertError
-        }
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || "Une erreur est survenue")
         setIsLoading(false)
         setIsSubmitting(false)
         return
       }
 
       try {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("email, first_name, last_name")
-          .eq("user_id", userId)
-          .single()
-
-        if (profile) {
-          await fetch("/api/email/send", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              type: "application_submitted",
-              email: profile.email,
-              firstName: profile.first_name,
-              lastName: profile.last_name,
-              applicationType: applicationType,
-            }),
-          })
-        }
+        await fetch("/api/email/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "application_submitted",
+            email: "",  // The API route will use session data
+            firstName: "",
+            lastName: "",
+            applicationType: applicationType,
+          }),
+        })
       } catch (emailError) {
         console.error("Failed to send application email:", emailError)
-        // Don't block application submission if email fails
       }
 
       router.push("/dashboard")

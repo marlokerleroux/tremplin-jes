@@ -1,47 +1,42 @@
-import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
+import { auth } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
 
 export async function GET() {
-  const supabase = await createClient()
+  const session = await auth()
 
-  // Check if user is admin
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
+  if (!session?.user) {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
   }
 
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
-
-  if (!profile || profile.role !== "admin") {
+  if (session.user.role !== "admin") {
     return NextResponse.json({ error: "Non autorisé" }, { status: 403 })
   }
 
-  const { data: technicalSheets, error } = await supabase
-    .from("technical_sheets")
-    .select(
-      `
-      pdf_url,
-      application_id,
-      applications!inner(stage_name)
-    `,
-    )
-    .order("applications(stage_name)", { ascending: true })
+  try {
+    const technicalSheets = await prisma.technicalSheet.findMany({
+      include: {
+        application: {
+          select: { stage_name: true },
+        },
+      },
+      orderBy: {
+        application: { stage_name: "asc" },
+      },
+    })
 
-  if (error) {
+    const sheetsData = technicalSheets
+      .filter((sheet) => sheet.pdf_url)
+      .map((sheet) => ({
+        stageName: sheet.application.stage_name,
+        pdfUrl: sheet.pdf_url,
+      }))
+
+    console.log("[v0] Found technical sheets:", sheetsData.length)
+
+    return NextResponse.json(sheetsData)
+  } catch (error) {
     console.error("[v0] Error fetching technical sheets:", error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: (error as Error).message }, { status: 500 })
   }
-
-  const sheetsData = technicalSheets
-    .filter((sheet: any) => sheet.pdf_url)
-    .map((sheet: any) => ({
-      stageName: sheet.applications.stage_name,
-      pdfUrl: sheet.pdf_url,
-    }))
-
-  console.log("[v0] Found technical sheets:", sheetsData.length)
-
-  return NextResponse.json(sheetsData)
 }

@@ -1,17 +1,13 @@
-import { put } from "@vercel/blob"
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { auth } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
+import { uploadBlob } from "@/lib/azure-blob"
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    const session = await auth()
 
-    // Check authentication
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
+    if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -38,74 +34,63 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify the application belongs to the user
-    const { data: application } = await supabase
-      .from("applications")
-      .select("id")
-      .eq("id", applicationId)
-      .eq("user_id", user.id)
-      .maybeSingle()
+    const application = await prisma.application.findFirst({
+      where: { id: applicationId, user_id: session.user.id },
+    })
 
     if (!application) {
       return NextResponse.json({ error: "Application not found" }, { status: 404 })
     }
 
-    // Upload to Vercel Blob with a unique filename
+    // Upload to Azure Blob with a unique filename
     const filename = `technical-sheet-${applicationId}-${Date.now()}.pdf`
-    const blob = await put(filename, file, {
-      access: "public",
+    const arrayBuffer = await file.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+    const blobUrl = await uploadBlob(filename, buffer, file.type)
+
+    // Upsert the technical sheet record
+    const existingSheet = await prisma.technicalSheet.findFirst({
+      where: { application_id: applicationId },
     })
 
-    // Save or update the technical sheet record
-    const { data: existingSheet } = await supabase
-      .from("technical_sheets")
-      .select("id")
-      .eq("application_id", applicationId)
-      .maybeSingle()
-
     if (existingSheet) {
-      // Update existing record
-      await supabase
-        .from("technical_sheets")
-        .update({
-          pdf_url: blob.url,
-          validated: false, // Reset validation when new file is uploaded
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", existingSheet.id)
+      await prisma.technicalSheet.update({
+        where: { id: existingSheet.id },
+        data: { pdf_url: blobUrl },
+      })
     } else {
-      // Create new record
-      await supabase.from("technical_sheets").insert({
-        application_id: applicationId,
-        pdf_url: blob.url,
-        validated: false,
+      await prisma.technicalSheet.create({
+        data: {
+          application_id: applicationId,
+          pdf_url: blobUrl,
+        },
       })
     }
 
     try {
-      const { data: appData } = await supabase
-        .from("applications")
-        .select(
-          `
-          stage_name,
-          profiles:user_id (
-            email,
-            first_name,
-            last_name
-          )
-        `,
-        )
-        .eq("id", applicationId)
-        .single()
+      const appData = await prisma.application.findUnique({
+        where: { id: applicationId },
+        select: {
+          stage_name: true,
+          profile: {
+            select: {
+              email: true,
+              first_name: true,
+              last_name: true,
+            },
+          },
+        },
+      })
 
-      if (appData && appData.profiles) {
+      if (appData && appData.profile) {
         await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/email/send`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             type: "technicalSheet",
-            email: (appData.profiles as any).email,
-            firstName: (appData.profiles as any).first_name,
-            lastName: (appData.profiles as any).last_name,
+            email: appData.profile.email,
+            firstName: appData.profile.first_name,
+            lastName: appData.profile.last_name,
             stageName: appData.stage_name,
           }),
         })
@@ -116,7 +101,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
-      url: blob.url,
+      url: blobUrl,
       filename: file.name,
       size: file.size,
     })
