@@ -18,9 +18,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Tremplin Jeunes en Scène - Inscription",
-  description: "Plateforme d'inscription pour le tremplin musical breton destiné aux jeunes musiciens de 13 à 23 ans",
-  generator: "v0.app",
+  title: "Tremplin Jeunes en Scène",
+  description: "Tremplin musical breton destiné aux jeunes musiciens de 13 à 23 ans",
 }
 
 export default function RootLayout({
@@ -29,7 +28,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="fr">
+    <html lang="fr" className="scroll-smooth">
       <body className={`font-sans ${montserrat.variable} ${geistMono.variable}`}>
         <Suspense fallback={null}>{children}</Suspense>
         <CookieConsentBanner />
