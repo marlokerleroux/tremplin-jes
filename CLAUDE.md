@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-"Tremplin Jeunes en Scène" — a music festival registration platform for young musicians (ages 13–23) in Brittany, France. Built with Next.js 15 App Router, Supabase, and deployed on Vercel. All UI text is in French.
+"Tremplin Jeunes en Scène" — a music festival registration platform for young musicians (ages 13–23) in Brittany, France, with a public-facing vitrine site. Built with Next.js 15 App Router, Prisma + Supabase PostgreSQL, and deployed on Vercel. All UI text is in French.
 
 ## Commands
 
@@ -22,38 +22,59 @@ Package manager is **pnpm**. No test framework is configured.
 ### Stack
 
 - **Next.js 15** (App Router) with **React 19** and **TypeScript**
-- **Supabase** for PostgreSQL database, auth, and file storage
+- **Prisma** ORM with **Supabase PostgreSQL** database
+- **NextAuth v5** (Auth.js) for authentication with Credentials provider
 - **Tailwind CSS v4** with **shadcn/ui** (New York style, RSC-enabled)
 - **react-hook-form** + **Zod** for form validation
 - **nodemailer** for SMTP email sending (config stored in DB `smtp_config` table)
 - **Vercel Blob** for file storage, **jszip/xlsx** for exports
+- **Deployed on Vercel**
+
+### Multi-Domain Setup
+
+Two domains pointing to the same Vercel deployment:
+- `tremplin-jeunes-en-scene.fr` → **Vitrine** (public showcase site)
+- `candidat.tremplin-jeunes-en-scene.fr` → **Espace candidat** (registration/admin app)
+
+Routing is handled in `middleware.ts` based on hostname:
+- Vitrine host: `/` rewrites to `/vitrine`, `/a-propos` rewrites to `/vitrine/a-propos`
+- Candidat host: NextAuth middleware applies, `/vitrine` is blocked
 
 ### Path Alias
 
-`@/*` maps to the project root (e.g., `@/components/ui/button`, `@/lib/supabase/server`).
+`@/*` maps to the project root (e.g., `@/components/ui/button`, `@/lib/prisma`).
 
 ### Auth Flow
 
-Supabase Auth with email/password. No middleware auth checks — auth is handled in individual pages via server components. The `profiles` table has a `role` field (`admin` | `user`) for role-based access. After login, users are redirected based on role (`/admin` or `/dashboard`) via `lib/redirect-after-auth.ts`.
+NextAuth v5 with Credentials provider (`lib/auth-config.ts`). Edge-compatible config in `lib/auth-config.edge.ts` (no Prisma/bcrypt). The `profiles` table has a `role` field (`admin` | `user`) for role-based access. After login, users are redirected based on role (`/admin` or `/dashboard`).
 
 ### Data Layer
 
-Direct Supabase client queries (no ORM). Two client factories:
-- `lib/supabase/server.ts` — server-side client with cookie-based sessions
-- `lib/supabase/client.ts` — browser client singleton
+**Prisma ORM** with PostgreSQL (Supabase-hosted). Schema in `prisma/schema.prisma`.
+- `lib/prisma.ts` — singleton PrismaClient
 
-Key tables: `profiles`, `applications`, `time_slots`, `technical_sheets`, `parental_authorizations`, `audition_tracking`, `smtp_config`. Row Level Security (RLS) policies enforce access control.
+Key tables: `profiles`, `applications`, `time_slots`, `technical_sheets`, `parental_authorizations`, `audition_tracking`, `smtp_config`, `schedule_config`, `password_reset_tokens`.
+
+### Vitrine Site (`app/vitrine/`)
+
+Public-facing showcase site with:
+- `app/vitrine/page.tsx` — Landing page (hero, about, finalists, partners)
+- `app/vitrine/a-propos/page.tsx` — About page (association history, press)
+- `app/vitrine/layout.tsx` — Shared layout with navbar, footer, JSON-LD structured data
+- `components/vitrine/` — All vitrine-specific components
+- `lib/vitrine/data.ts` — Event data, finalists, partners
 
 ### API Routes (`app/api/`)
 
 All business logic runs through App Router API routes:
-- **Email**: `POST /api/email/send` — templated emails (welcome, application submitted, validation, time slot)
+- **Auth**: `/api/auth/[...nextauth]`, `/api/auth/signup`, `/api/auth/forgot-password`, `/api/auth/reset-password`
+- **Email**: `POST /api/email/send` — templated emails
 - **Uploads**: `/api/technical-sheet/upload`, `/api/parental-authorization/upload` (user + admin variants)
-- **Applications**: `/api/application/delete`, `/api/applications/export`, `/api/admin/application/update`
+- **Applications**: `/api/application/create`, `/api/application/delete`, `/api/applications/export`, `/api/admin/application/update`
 - **Audition tracking**: `/api/admin/audition-tracking` (GET/POST)
 - **Exports**: `/api/technical-sheets/download-all`
 
-Admin API routes verify the user's role from Supabase auth before processing.
+Admin API routes verify the user's role via NextAuth session before processing.
 
 ### Key Components
 
@@ -63,43 +84,22 @@ Admin API routes verify the user's role from Supabase auth before processing.
 - `components/parental-authorization-upload.tsx` — parental auth document upload
 - `components/ui/` — shadcn/ui primitives
 
-### Database Migrations
-
-SQL migration scripts live in `/scripts/` (numbered 019–024+). These are run manually against Supabase.
-
 ## Environment Variables
 
-- `NEXT_PUBLIC_SUPABASE_URL` — Supabase project URL
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase anonymous key
+### Vercel Production
+
+- `DATABASE_URL` — Supabase PostgreSQL connection string (pooled, with `?pgbouncer=true`)
+- `POSTGRES_URL_NON_POOLING` — Direct connection (for migrations)
+- `AUTH_SECRET` — NextAuth secret
+- `AUTH_URL` — `https://candidat.tremplin-jeunes-en-scene.fr`
+- `NEXT_PUBLIC_SITE_URL` — `https://candidat.tremplin-jeunes-en-scene.fr`
+- `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase project (legacy, still used by some code)
+- `BLOB_READ_WRITE_TOKEN` — Vercel Blob storage
 
 SMTP configuration is stored in the `smtp_config` database table, not in env vars.
 
 ## Build Notes
 
-`next.config.mjs` disables ESLint and TypeScript errors during builds (`ignoreDuringBuilds: true`, `ignoreBuildErrors: true`). Images are unoptimized.
-
-## WIP — Migration Azure (CI/CD)
-
-**Statut :** En cours, non fonctionnel.
-
-La migration de Vercel vers Azure App Service est en cours. Le commit `4080b4e` a lancé la migration, suivi de 5 commits de fix (`540468a` → `e782a2f`).
-
-**Infrastructure cible :**
-- Azure App Service : `app-tremplin-jes` (resource group `rg-tremplin-jes`)
-- Auth : Prisma + NextAuth (remplace Supabase Auth)
-- Storage : Azure Blob Storage (remplace Vercel Blob)
-- DB : PostgreSQL via `DATABASE_URL`
-
-**Workflow CI/CD :** `.github/workflows/deploy.yml`
-- Build Next.js standalone → zip → `az webapp deploy`
-- Auth Azure via `AZURE_CREDENTIALS` (service principal JSON)
-- Secrets requis : `DATABASE_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `NEXT_PUBLIC_SITE_URL`, `AZURE_STORAGE_CONNECTION_STRING`
-
-**Problèmes rencontrés et tentatives :**
-1. `publish-profile` ne marchait pas → remplacé par `azure/login` avec credentials JSON
-2. Extraction `node_modules` cassée sur Azure → passage à `az webapp deploy --type zip`
-3. Ajout `WEBSITE_RUN_FROM_PACKAGE` + clean deploy
-4. Symlinks pnpm non supportés → résolution avant zip
-5. Dernier essai : hoisting des `node_modules` pour compatibilité Azure
-
-**Prochaine étape :** Vérifier les logs Azure App Service pour identifier l'erreur runtime exacte après le dernier fix (`e782a2f`). Si ça ne marche toujours pas, envisager un output standalone avec les dépendances bundlées, ou passer à Azure Container Apps avec Docker.
+- `next.config.mjs` disables ESLint and TypeScript errors during builds (`ignoreDuringBuilds: true`, `ignoreBuildErrors: true`)
+- Next.js image optimization is enabled with AVIF/WebP formats
+- Deploy via `npx vercel --prod` or automatic on push to `main`

@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     const smtpConfig = await getSMTPConfig()
     if (smtpConfig) {
       const siteUrl =
-        process.env.NEXT_PUBLIC_SITE_URL || "https://tremplin-jeunes-en-scene.fr"
+        process.env.NEXT_PUBLIC_SITE_URL || "https://candidat.tremplin-jeunes-en-scene.fr"
       const resetUrl = `${siteUrl}/auth/reset-password?token=${token}`
       const template = getPasswordResetEmail({
         firstName: profile.first_name,
