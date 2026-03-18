@@ -26,7 +26,7 @@ function calculateTimeLeft(): TimeLeft {
 function TimeBlock({ value, label }: { value: number; label: string }) {
   return (
     <div className="flex flex-col items-center">
-      <div className="bg-secondary text-primary font-bold text-3xl md:text-5xl w-16 h-16 md:w-24 md:h-24 rounded-xl flex items-center justify-center shadow-lg">
+      <div className="bg-white/15 backdrop-blur-sm text-white font-bold text-3xl md:text-5xl w-16 h-16 md:w-24 md:h-24 rounded-xl flex items-center justify-center shadow-lg border border-white/20">
         {String(value).padStart(2, "0")}
       </div>
       <span className="text-white/80 text-xs md:text-sm mt-2 uppercase tracking-wider">{label}</span>

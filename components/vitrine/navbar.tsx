@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button"
 import { eventInfo } from "@/lib/vitrine/data"
 
 const navLinks = [
-  { href: "#a-propos", label: "Le Prix" },
-  { href: "#finalistes", label: "Finalistes" },
-  { href: "#partenaires", label: "Partenaires" },
+  { href: "/#a-propos", label: "La finale" },
+  { href: "/#finalistes", label: "Nos finalistes" },
+  { href: "/#partenaires", label: "Partenaires" },
+  { href: "/a-propos", label: "À propos" },
 ]
 
 export function VitrineNavbar() {
@@ -18,7 +19,7 @@ export function VitrineNavbar() {
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-primary/10">
-      <nav className="container mx-auto px-4 h-16 flex items-center justify-between">
+      <nav aria-label="Navigation principale" className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
           <Image
             src="/images/design-mode/logo_sans_fond.png"

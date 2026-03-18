@@ -1,14 +1,15 @@
 import { finalists } from "@/lib/vitrine/data"
 import { FinalistCard } from "@/components/vitrine/finalist-card"
+import { TornEdge } from "@/components/vitrine/torn-edge"
 
 export function FinalistsSection() {
   return (
-    <section id="finalistes" className="scroll-mt-20 py-20 md:py-28">
+    <section id="finalistes" className="relative scroll-mt-20 py-20 md:py-28">
       <div className="container mx-auto px-4">
         <div className="text-center space-y-4 mb-16">
-          <h2 className="text-3xl md:text-5xl font-extrabold text-primary">Les Finalistes</h2>
+          <h2 className="text-3xl md:text-5xl font-extrabold text-primary uppercase">Les Finalistes</h2>
           <p className="text-lg text-foreground/60 max-w-2xl mx-auto">
-            Decouvrez les 6 artistes qui se produiront sur la scene du Vauban
+            Découvrez les 6 artistes qui se produiront sur la scène du Vauban
           </p>
         </div>
 
@@ -17,6 +18,11 @@ export function FinalistsSection() {
             <FinalistCard key={finalist.id} finalist={finalist} />
           ))}
         </div>
+      </div>
+
+      {/* Torn edge into partners section */}
+      <div className="absolute bottom-0 left-0 right-0">
+        <TornEdge bgColor="text-[oklch(0.97_0.01_264)]" />
       </div>
     </section>
   )

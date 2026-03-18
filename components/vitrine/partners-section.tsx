@@ -7,7 +7,7 @@ export function PartnersSection() {
       <section id="partenaires" className="scroll-mt-20 py-20 md:py-28 bg-primary/5">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl md:text-5xl font-extrabold text-primary mb-6">Nos Partenaires</h2>
-          <p className="text-lg text-foreground/60">Partenaires a venir...</p>
+          <p className="text-lg text-foreground/60">Partenaires à venir...</p>
         </div>
       </section>
     )
@@ -27,7 +27,7 @@ export function PartnersSection() {
                 alt={partner.name}
                 width={160}
                 height={80}
-                className="h-16 w-auto mx-auto grayscale hover:grayscale-0 transition-all opacity-70 hover:opacity-100"
+                className="h-16 w-auto mx-auto grayscale hover:grayscale-0 transition-all opacity-70 hover:opacity-100 mix-blend-multiply"
               />
             )
             return partner.url ? (
