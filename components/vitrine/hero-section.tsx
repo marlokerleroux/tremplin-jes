@@ -69,7 +69,8 @@ export function HeroSection() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-3 bg-white text-[#EB0055] hover:bg-white/90 font-extrabold text-lg px-8 py-3 rounded-none shadow-xl uppercase tracking-wider rotate-1 hover:rotate-0 transition-transform"
             >
-              <Image
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
                 src="/images/vitrine/pass-culture-logo.svg"
                 alt="Pass Culture"
                 width={100}
