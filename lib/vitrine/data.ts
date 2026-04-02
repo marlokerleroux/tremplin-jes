@@ -47,5 +47,5 @@ export const partners: Partner[] = [
 
 export const eventInfo = {
   ticketUrl: "https://www.billetweb.fr/finale-tremplin-jeunes-en-scene-2026",
-  passCultureUrl: "#",
+  passCultureUrl: "https://passculture.app/offre/399633296",
 }
