@@ -67,9 +67,16 @@ export function HeroSection() {
               href={eventInfo.passCultureUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-white/80 hover:text-white text-sm underline underline-offset-4"
+              className="inline-flex items-center gap-3 bg-white text-[#EB0055] hover:bg-white/90 font-extrabold text-lg px-8 py-3 rounded-none shadow-xl uppercase tracking-wider rotate-1 hover:rotate-0 transition-transform"
             >
-              Disponible sur Pass Culture
+              <Image
+                src="/images/vitrine/pass-culture-logo.svg"
+                alt="Pass Culture"
+                width={100}
+                height={30}
+                className="h-7 w-auto"
+              />
+              Réserver avec le pass
             </a>
           )}
         </div>
