@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-"Tremplin Jeunes en Scène" — a music festival registration platform for young musicians (ages 13–23) in Brittany, France, with a public-facing vitrine site. Built with Next.js 15 App Router, Prisma + Supabase PostgreSQL, and deployed on Vercel. All UI text is in French.
+"Tremplin Jeunes en Scène" — a music festival registration platform for young musicians (ages 13–23) in Brittany, France, with a public-facing vitrine site. Built with Next.js 15 App Router, Prisma + Supabase PostgreSQL, and deployed on Vercel (project name: `passmusique`). All UI text is in French.
 
 ## Commands
 
@@ -17,6 +17,11 @@ pnpm start        # Start production server
 
 Package manager is **pnpm**. No test framework is configured.
 
+## Git Workflow
+
+- Single branch: **`main`** (no develop branch)
+- Deploy to production via `vercel --prod` or automatic on push to `main`
+
 ## Architecture
 
 ### Stack
@@ -28,12 +33,12 @@ Package manager is **pnpm**. No test framework is configured.
 - **react-hook-form** + **Zod** for form validation
 - **nodemailer** for SMTP email sending (config stored in DB `smtp_config` table)
 - **Vercel Blob** for file storage, **jszip/xlsx** for exports
-- **Deployed on Vercel**
+- **Deployed on Vercel** (project: `passmusique`, scope: `marlo`)
 
 ### Multi-Domain Setup
 
-Two domains pointing to the same Vercel deployment:
-- `tremplin-jeunes-en-scene.fr` → **Vitrine** (public showcase site)
+Two domains pointing to the same Vercel deployment (project `passmusique`):
+- `tremplin-jeunes-en-scene.fr` / `www.tremplin-jeunes-en-scene.fr` → **Vitrine** (public showcase site)
 - `candidat.tremplin-jeunes-en-scene.fr` → **Espace candidat** (registration/admin app)
 
 Routing is handled in `middleware.ts` based on hostname:
@@ -98,8 +103,14 @@ Admin API routes verify the user's role via NextAuth session before processing.
 
 SMTP configuration is stored in the `smtp_config` database table, not in env vars.
 
+## SEO / Robots
+
+- Vitrine layout (`app/vitrine/layout.tsx`): `robots: { index: true, follow: true }`
+- Espace candidat layout (`app/(candidat)/layout.tsx`): `robots: { index: false, follow: false }`
+- Legal & privacy pages: `robots: { index: false, follow: false }`
+
 ## Build Notes
 
 - `next.config.mjs` disables ESLint and TypeScript errors during builds (`ignoreDuringBuilds: true`, `ignoreBuildErrors: true`)
 - Next.js image optimization is enabled with AVIF/WebP formats
-- Deploy via `npx vercel --prod` or automatic on push to `main`
+- Deploy via `vercel --prod` (Vercel project: `passmusique`, scope: `marlo`)
