@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { uploadBlob } from "@/lib/azure-blob"
+import { uploadBlob } from "@/lib/blob-storage"
 
 export async function POST(request: NextRequest) {
   try {
