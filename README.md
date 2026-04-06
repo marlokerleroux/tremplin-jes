@@ -1,30 +1,56 @@
-# Music festival registration app
+# Tremplin Jeunes en Scène
 
-*Automatically synced with your [v0.app](https://v0.app) deployments*
+Plateforme d'inscription et site vitrine pour le Tremplin Jeunes en Scène, tremplin musical breton destiné aux jeunes artistes de 13 à 23 ans.
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/marlo/v0-music-festival-registration-app)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.app-black?style=for-the-badge)](https://v0.app/chat/projects/QNqpizSkSNY)
+## Sites
 
-## Overview
+- **Vitrine** : [tremplin-jeunes-en-scene.fr](https://tremplin-jeunes-en-scene.fr) — page d'accueil publique (finalistes, partenaires, billetterie)
+- **Espace candidat** : [candidat.tremplin-jeunes-en-scene.fr](https://candidat.tremplin-jeunes-en-scene.fr) — inscription, candidature, espace admin
 
-This repository will stay in sync with your deployed chats on [v0.app](https://v0.app).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.app](https://v0.app).
+## Stack technique
 
-## Deployment
+- **Next.js 15** (App Router) / **React 19** / **TypeScript**
+- **Prisma** ORM + **Supabase PostgreSQL**
+- **NextAuth v5** (Credentials provider)
+- **Tailwind CSS v4** + **shadcn/ui**
+- **Vercel** (hébergement) / **Vercel Blob** (stockage fichiers)
 
-Your project is live at:
+## Développement
 
-**[https://vercel.com/marlo/v0-music-festival-registration-app](https://vercel.com/marlo/v0-music-festival-registration-app)**
+```bash
+pnpm install      # Installer les dépendances
+pnpm dev          # Serveur de développement
+pnpm build        # Build de production
+pnpm lint         # ESLint
+```
 
-## Build your app
+## Déploiement
 
-Continue building your app on:
+Hébergé sur Vercel (projet `passmusique`). Le déploiement se fait automatiquement sur push vers `main`, ou manuellement :
 
-**[https://v0.app/chat/projects/QNqpizSkSNY](https://v0.app/chat/projects/QNqpizSkSNY)**
+```bash
+vercel --prod
+```
 
-## How It Works
+## Structure
 
-1. Create and modify your project using [v0.app](https://v0.app)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+```
+app/
+  vitrine/          # Site vitrine public
+  (candidat)/       # Espace candidat (auth, dashboard, admin)
+  api/              # Routes API (auth, email, uploads, exports)
+components/
+  vitrine/          # Composants du site vitrine
+  ui/               # Composants shadcn/ui
+lib/
+  vitrine/data.ts   # Données événement, finalistes, partenaires
+  prisma.ts         # Client Prisma singleton
+  auth-config.ts    # Configuration NextAuth
+middleware.ts       # Routage multi-domaine (vitrine / candidat)
+prisma/
+  schema.prisma     # Schéma de la base de données
+```
+
+## Licence
+
+Projet privé — Association Pass'Musique.
