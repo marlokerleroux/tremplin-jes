@@ -45,7 +45,7 @@ export function DeleteApplicationButton() {
       router.push("/")
       router.refresh()
     } catch (error) {
-      console.error("[v0] Error deleting application:", error)
+      console.error("[app] Error deleting application:", error)
       toast({
         title: "Erreur",
         description: error instanceof Error ? error.message : "Impossible de supprimer la candidature",

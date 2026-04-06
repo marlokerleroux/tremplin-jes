@@ -32,7 +32,7 @@ export async function DELETE() {
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("[v0] Unexpected error:", error)
+    console.error("[api] Unexpected error:", error)
     return NextResponse.json({ error: "Erreur inattendue" }, { status: 500 })
   }
 }

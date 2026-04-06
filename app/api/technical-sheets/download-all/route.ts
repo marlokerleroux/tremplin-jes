@@ -32,11 +32,11 @@ export async function GET() {
         pdfUrl: sheet.pdf_url,
       }))
 
-    console.log("[v0] Found technical sheets:", sheetsData.length)
+    console.log("[api] Found technical sheets:", sheetsData.length)
 
     return NextResponse.json(sheetsData)
   } catch (error) {
-    console.error("[v0] Error fetching technical sheets:", error)
+    console.error("[api] Error fetching technical sheets:", error)
     return NextResponse.json({ error: (error as Error).message }, { status: 500 })
   }
 }

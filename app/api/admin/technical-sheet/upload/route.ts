@@ -58,13 +58,13 @@ export async function POST(request: NextRequest) {
     })
 
     if (existingSheet) {
-      console.log("[v0] Updating existing technical sheet:", existingSheet.id)
+      console.log("[api] Updating existing technical sheet:", existingSheet.id)
       await prisma.technicalSheet.update({
         where: { id: existingSheet.id },
         data: { pdf_url: blobUrl },
       })
     } else {
-      console.log("[v0] Creating new technical sheet for application:", applicationId)
+      console.log("[api] Creating new technical sheet for application:", applicationId)
       await prisma.technicalSheet.create({
         data: {
           application_id: applicationId,

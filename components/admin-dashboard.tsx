@@ -206,10 +206,10 @@ interface AuditionTracking {
 }
 
 export function AdminDashboard({ applications: initialApplications }: AdminDashboardProps) {
-  console.log("[v0] AdminDashboard received applications:", initialApplications.length)
+  console.log("[admin] AdminDashboard received applications:", initialApplications.length)
   if (initialApplications.length > 0) {
-    console.log("[v0] First application:", initialApplications[0])
-    console.log("[v0] First application technical_sheets:", initialApplications[0].technical_sheets)
+    console.log("[admin] First application:", initialApplications[0])
+    console.log("[admin] First application technical_sheets:", initialApplications[0].technical_sheets)
   }
 
   const router = useRouter()
@@ -488,18 +488,18 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
 
       // Get all applications with assigned time slots
       const applicationsWithSlots = applications.filter((app) => app.time_slot_id)
-      console.log("[v0] Found", applicationsWithSlots.length, "applications with time slots")
+      console.log("[admin] Found", applicationsWithSlots.length, "applications with time slots")
 
       // Send email to each candidate
       for (const app of applicationsWithSlots) {
         try {
           if (!app.profiles || !app.time_slots) {
-            console.log("[v0] Skipping app", app.id, "- missing profiles or time_slots")
+            console.log("[admin] Skipping app", app.id, "- missing profiles or time_slots")
             continue
           }
 
           console.log(
-            "[v0] Sending email to:",
+            "[admin] Sending email to:",
             app.profiles.email,
             "for slot:",
             app.time_slots.date,
@@ -521,13 +521,13 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
           })
 
           const result = await response.json()
-          console.log("[v0] Email sent to", app.profiles.email, "- result:", result)
+          console.log("[admin] Email sent to", app.profiles.email, "- result:", result)
         } catch (emailError) {
-          console.error("[v0] Failed to send email to", app.profiles?.email, ":", emailError)
+          console.error("[admin] Failed to send email to", app.profiles?.email, ":", emailError)
         }
       }
 
-      console.log("[v0] Finished sending all emails")
+      console.log("[admin] Finished sending all emails")
     } else {
       console.error("Error validating schedule:", error)
       alert("Erreur lors de la validation du planning. Veuillez réessayer.")
@@ -832,7 +832,7 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
 
     try {
       setUploadError(null)
-      console.log("[v0] Uploading technical sheet for application:", uploadingApplication.id)
+      console.log("[admin] Uploading technical sheet for application:", uploadingApplication.id)
 
       const formData = new FormData()
       formData.append("file", file)
@@ -844,7 +844,7 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
       })
 
       const result = await response.json()
-      console.log("[v0] Upload response:", result)
+      console.log("[admin] Upload response:", result)
 
       if (!response.ok) {
         throw new Error(result.error || "Erreur lors de l'upload")
@@ -867,7 +867,7 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
       setUploadDialogOpen(false)
       alert("Document uploadé avec succès !")
     } catch (error) {
-      console.error("[v0] Upload error:", error)
+      console.error("[admin] Upload error:", error)
       setUploadError(error instanceof Error ? error.message : "Erreur lors de l'upload")
     } finally {
       setIsUploading(false)
@@ -880,7 +880,7 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
     try {
       setUploadError(null)
       console.log(
-        "[v0] Uploading parental auth for application:",
+        "[admin] Uploading parental auth for application:",
         uploadingApplication.id,
         "member:",
         selectedMemberIndex,
@@ -900,7 +900,7 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
       })
 
       const result = await response.json()
-      console.log("[v0] Upload response:", result)
+      console.log("[admin] Upload response:", result)
 
       if (!response.ok) {
         throw new Error(result.error || "Erreur lors de l'upload")
@@ -923,7 +923,7 @@ export function AdminDashboard({ applications: initialApplications }: AdminDashb
       setUploadDialogOpen(false)
       alert("Document uploadé avec succès !")
     } catch (error) {
-      console.error("[v0] Upload error:", error)
+      console.error("[admin] Upload error:", error)
       setUploadError(error instanceof Error ? error.message : "Erreur lors de l'upload")
     } finally {
       setIsUploading(false)

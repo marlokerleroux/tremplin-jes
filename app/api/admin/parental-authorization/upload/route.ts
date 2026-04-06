@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (existingAuth) {
-      console.log("[v0] Updating existing parental auth:", existingAuth.id)
+      console.log("[api] Updating existing parental auth:", existingAuth.id)
       await prisma.parentalAuthorization.update({
         where: { id: existingAuth.id },
         data: {
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
         },
       })
     } else {
-      console.log("[v0] Creating new parental auth for application:", applicationId, "member:", memberIndex)
+      console.log("[api] Creating new parental auth for application:", applicationId, "member:", memberIndex)
       await prisma.parentalAuthorization.create({
         data: {
           application_id: applicationId,

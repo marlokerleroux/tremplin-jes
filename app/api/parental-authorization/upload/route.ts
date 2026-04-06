@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       size: file.size,
     })
   } catch (error) {
-    console.error("[v0] Error uploading parental authorization:", error)
+    console.error("[api] Error uploading parental authorization:", error)
     return NextResponse.json({ error: "Erreur lors de l'upload" }, { status: 500 })
   }
 }

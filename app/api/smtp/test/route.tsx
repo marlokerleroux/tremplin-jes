@@ -44,7 +44,7 @@ export async function POST(request: Request) {
       message: `Email de test envoyé avec succès à ${config.smtp_from_email}`,
     })
   } catch (error: any) {
-    console.error("[v0] SMTP test error:", error)
+    console.error("[smtp] SMTP test error:", error)
     return NextResponse.json(
       {
         success: false,

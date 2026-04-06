@@ -15,7 +15,7 @@ async function getSMTPConfig(): Promise<SMTPConfig | null> {
     const data = await prisma.smtpConfig.findFirst()
 
     if (!data) {
-      console.error("[v0] No SMTP config found in database")
+      console.error("[email] No SMTP config found in database")
       return null
     }
 
@@ -29,7 +29,7 @@ async function getSMTPConfig(): Promise<SMTPConfig | null> {
       smtp_secure: data.smtp_secure,
     }
   } catch (error) {
-    console.error("[v0] Error in getSMTPConfig:", error)
+    console.error("[email] Error in getSMTPConfig:", error)
     return null
   }
 }
@@ -38,7 +38,7 @@ async function getSMTPConfig(): Promise<SMTPConfig | null> {
 export async function sendWelcomeEmail(email: string, firstName: string, lastName: string) {
   const smtpConfig = await getSMTPConfig()
   if (!smtpConfig) {
-    console.error("[v0] SMTP not configured, skipping welcome email")
+    console.error("[email] SMTP not configured, skipping welcome email")
     return { success: false, error: "SMTP not configured" }
   }
 
@@ -55,7 +55,7 @@ export async function sendApplicationSubmittedEmail(
 ) {
   const smtpConfig = await getSMTPConfig()
   if (!smtpConfig) {
-    console.error("[v0] SMTP not configured, skipping application submitted email")
+    console.error("[email] SMTP not configured, skipping application submitted email")
     return { success: false, error: "SMTP not configured" }
   }
 
@@ -67,7 +67,7 @@ export async function sendApplicationSubmittedEmail(
 export async function sendTechnicalSheetSubmittedEmail(email: string, firstName: string, lastName: string) {
   const smtpConfig = await getSMTPConfig()
   if (!smtpConfig) {
-    console.error("[v0] SMTP not configured, skipping technical sheet submitted email")
+    console.error("[email] SMTP not configured, skipping technical sheet submitted email")
     return { success: false, error: "SMTP not configured" }
   }
 
@@ -81,7 +81,7 @@ export { sendTechnicalSheetSubmittedEmail as sendTechnicalSheetUploadedEmail }
 export async function sendApplicationValidatedEmail(email: string, firstName: string, lastName: string) {
   const smtpConfig = await getSMTPConfig()
   if (!smtpConfig) {
-    console.error("[v0] SMTP not configured, skipping application validated email")
+    console.error("[email] SMTP not configured, skipping application validated email")
     return { success: false, error: "SMTP not configured" }
   }
 
@@ -100,7 +100,7 @@ export async function sendTimeSlotAssignedEmail(
 ) {
   const smtpConfig = await getSMTPConfig()
   if (!smtpConfig) {
-    console.error("[v0] SMTP not configured, skipping time slot assigned email")
+    console.error("[email] SMTP not configured, skipping time slot assigned email")
     return { success: false, error: "SMTP not configured" }
   }
 
@@ -117,7 +117,7 @@ export async function sendPasswordResetEmail(
 ) {
   const smtpConfig = await getSMTPConfig()
   if (!smtpConfig) {
-    console.error("[v0] SMTP not configured, skipping password reset email")
+    console.error("[email] SMTP not configured, skipping password reset email")
     return { success: false, error: "SMTP not configured" }
   }
 

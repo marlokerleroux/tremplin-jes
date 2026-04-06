@@ -39,7 +39,7 @@ export async function sendEmail(
 
     return { success: true }
   } catch (error) {
-    console.error("[v0] Error sending email:", error)
+    console.error("[email] Error sending email:", error)
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
