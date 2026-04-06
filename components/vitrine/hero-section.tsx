@@ -52,7 +52,7 @@ export function HeroSection() {
 
         <CountdownTimer />
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+        <div className="flex flex-col items-center justify-center gap-4 pt-4">
           <Button
             asChild
             size="lg"
@@ -67,7 +67,7 @@ export function HeroSection() {
               href={eventInfo.passCultureUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-3 bg-white text-[#EB0055] hover:bg-white/90 font-extrabold text-lg px-8 py-3 rounded-none shadow-xl uppercase tracking-wider rotate-1 hover:rotate-0 transition-transform"
+              className="inline-flex items-center gap-2 sm:gap-3 bg-white text-[#EB0055] hover:bg-white/90 font-bold sm:font-extrabold text-sm sm:text-base px-5 sm:px-8 py-2 sm:py-3 rounded-none shadow-lg uppercase tracking-wider rotate-1 hover:rotate-0 transition-transform"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -75,7 +75,7 @@ export function HeroSection() {
                 alt="Pass Culture"
                 width={100}
                 height={30}
-                className="h-7 w-auto"
+                className="h-5 sm:h-7 w-auto"
               />
               Réserver avec le pass
             </a>
