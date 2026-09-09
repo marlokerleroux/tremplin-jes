@@ -12,6 +12,19 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Plus, Trash2, FileText } from "lucide-react"
+import {
+  GROUP_AVERAGE_MAX_AGE,
+  GROUP_MEMBER_MAX_AGE,
+  GROUP_MEMBER_MIN_AGE,
+  SOLO_MAX_AGE,
+  SOLO_MIN_AGE,
+  formatDateFr,
+  formatDateShortFr,
+  validateEligibility,
+  type ApplicationType,
+} from "@/lib/season"
+import { applicationCreateSchema, BIOGRAPHY_MIN_LENGTH } from "@/lib/validation/application"
+import { formatZodError } from "@/lib/validation/common"
 
 interface GroupMember {
   firstName: string
@@ -20,24 +33,29 @@ interface GroupMember {
 }
 
 interface RegistrationFormProps {
-  userId: string
+  /** Date de référence pour le calcul de l'âge (AAAA-MM-JJ). */
+  ageReferenceDate: string
+  /** Dates d'audition proposées (AAAA-MM-JJ). */
+  auditionDates: string[]
+  venue: string
 }
 
-export function RegistrationForm({ userId }: RegistrationFormProps) {
+export function RegistrationForm({ ageReferenceDate, auditionDates, venue }: RegistrationFormProps) {
   const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Form state
-  const [applicationType, setApplicationType] = useState<"solo" | "group">("solo")
+  const [applicationType, setApplicationType] = useState<ApplicationType>("solo")
   const [stageName, setStageName] = useState("")
   const [soloBirthDate, setSoloBirthDate] = useState("")
-  const [groupMembers, setGroupMembers] = useState<GroupMember[]>([{ firstName: "", lastName: "", birthDate: "" }])
+  const [groupMembers, setGroupMembers] = useState<GroupMember[]>([
+    { firstName: "", lastName: "", birthDate: "" },
+    { firstName: "", lastName: "", birthDate: "" },
+  ])
   const [biography, setBiography] = useState("")
   const [musicalStyle, setMusicalStyle] = useState("")
   const [instagram, setInstagram] = useState("")
-  const [howDidYouHear, setHowDidYouHear] = useState("")
   const [hasOriginalComposition, setHasOriginalComposition] = useState(false)
   const [isSacemRegistered, setIsSacemRegistered] = useState(false)
   const [allowsBroadcast, setAllowsBroadcast] = useState(false)
@@ -46,203 +64,84 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
   const [preferredAuditionDate, setPreferredAuditionDate] = useState("")
   const [acceptedRules, setAcceptedRules] = useState(false)
 
+  const refLabel = formatDateShortFr(ageReferenceDate)
+
   const addGroupMember = () => {
     setGroupMembers([...groupMembers, { firstName: "", lastName: "", birthDate: "" }])
   }
 
   const removeGroupMember = (index: number) => {
-    if (groupMembers.length > 1) {
+    if (groupMembers.length > 2) {
       setGroupMembers(groupMembers.filter((_, i) => i !== index))
     }
   }
 
   const updateGroupMember = (index: number, field: keyof GroupMember, value: string) => {
-    const updated = [...groupMembers]
-    updated[index][field] = value
-    setGroupMembers(updated)
-  }
-
-  const calculateAgeAtAudition = (birthDate: string): number => {
-    const birth = new Date(birthDate)
-    const auditionDate = new Date(2026, 0, 31) // 31 janvier 2026
-
-    // Calculate difference in milliseconds
-    const diffMs = auditionDate.getTime() - birth.getTime()
-
-    // Convert to years (365.25 days per year to account for leap years)
-    const ageYears = diffMs / (1000 * 60 * 60 * 24 * 365.25)
-
-    // Round to 2 decimal places
-    return Math.round(ageYears * 100) / 100
-  }
-
-  const validateSoloAge = (birthDate: string): { valid: boolean; age: number; message?: string } => {
-    const age = calculateAgeAtAudition(birthDate)
-    if (age < 13) {
-      return {
-        valid: false,
-        age,
-        message: `Vous aurez ${age.toFixed(2)} ans au 31 janvier 2026. L'âge minimum est de 13 ans.`,
-      }
-    }
-    if (age >= 24) {
-      return {
-        valid: false,
-        age,
-        message: `Vous aurez ${age.toFixed(2)} ans au 31 janvier 2026. L'âge maximum est de 23 ans.`,
-      }
-    }
-    return { valid: true, age }
-  }
-
-  const validateGroupMemberAge = (birthDate: string): { valid: boolean; age: number; message?: string } => {
-    const age = calculateAgeAtAudition(birthDate)
-    if (age < 13) {
-      return {
-        valid: false,
-        age,
-        message: `Ce membre aura ${age.toFixed(2)} ans au 31 janvier 2026. L'âge minimum est de 13 ans.`,
-      }
-    }
-    if (age > 25) {
-      return {
-        valid: false,
-        age,
-        message: `Ce membre aura ${age.toFixed(2)} ans au 31 janvier 2026. L'âge maximum pour un membre d'un groupe est de 25 ans.`,
-      }
-    }
-    return { valid: true, age }
-  }
-
-  const validateGroupAverageAge = (members: GroupMember[]): { valid: boolean; average: number; message?: string } => {
-    const ages = members.map((m) => calculateAgeAtAudition(m.birthDate))
-    const average = ages.reduce((sum, age) => sum + age, 0) / ages.length
-
-    if (average > 23) {
-      return {
-        valid: false,
-        average,
-        message: `La moyenne d'âge du groupe est de ${average.toFixed(2)} ans au 31 janvier 2026. Elle doit être de 23 ans maximum.`,
-      }
-    }
-    return { valid: true, average }
+    setGroupMembers(groupMembers.map((member, i) => (i === index ? { ...member, [field]: value } : member)))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isSubmitting) return
 
-    if (isSubmitting) {
+    setError(null)
+
+    const membersData: GroupMember[] =
+      applicationType === "solo" ? [{ firstName: "", lastName: "", birthDate: soloBirthDate }] : groupMembers
+
+    const payload = {
+      application_type: applicationType,
+      stage_name: stageName,
+      group_members: membersData,
+      biography,
+      musical_style: musicalStyle,
+      instagram: instagram || null,
+      has_original_composition: hasOriginalComposition,
+      is_sacem_registered: hasOriginalComposition ? isSacemRegistered : null,
+      allows_broadcast: allowsBroadcast,
+      has_stage_experience: hasStageExperience,
+      stage_experience_details: hasStageExperience ? stageExperienceDetails : null,
+      preferred_audition_date: preferredAuditionDate || null,
+      accepted_rules: acceptedRules,
+    }
+
+    const parsed = applicationCreateSchema.safeParse(payload)
+    if (!parsed.success) {
+      setError(formatZodError(parsed.error))
+      return
+    }
+
+    const eligibility = validateEligibility(applicationType, membersData, ageReferenceDate)
+    if (!eligibility.valid) {
+      setError(eligibility.errors.join(" "))
       return
     }
 
     setIsSubmitting(true)
-    setIsLoading(true)
-    setError(null)
-
-    if (!acceptedRules) {
-      setError("Vous devez accepter le règlement du tremplin pour soumettre votre candidature")
-      setIsLoading(false)
-      setIsSubmitting(false)
-      return
-    }
-
-    if (applicationType === "solo") {
-      const validation = validateSoloAge(soloBirthDate)
-      if (!validation.valid) {
-        setError(validation.message!)
-        setIsLoading(false)
-        setIsSubmitting(false)
-        return
-      }
-    }
-
-    if (applicationType === "group") {
-      for (let i = 0; i < groupMembers.length; i++) {
-        const member = groupMembers[i]
-        if (!member.birthDate) {
-          setError(`Veuillez renseigner la date de naissance du membre ${i + 1}`)
-          setIsLoading(false)
-          setIsSubmitting(false)
-          return
-        }
-
-        const validation = validateGroupMemberAge(member.birthDate)
-        if (!validation.valid) {
-          setError(`Membre ${i + 1} : ${validation.message}`)
-          setIsLoading(false)
-          setIsSubmitting(false)
-          return
-        }
-      }
-
-      const averageValidation = validateGroupAverageAge(groupMembers)
-      if (!averageValidation.valid) {
-        setError(averageValidation.message!)
-        setIsLoading(false)
-        setIsSubmitting(false)
-        return
-      }
-    }
-
     try {
-      const membersData =
-        applicationType === "solo" ? [{ firstName: "", lastName: "", birthDate: soloBirthDate }] : groupMembers
-
       const res = await fetch("/api/application/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          application_type: applicationType,
-          stage_name: stageName,
-          group_members: membersData,
-          biography,
-          musical_style: musicalStyle,
-          instagram: instagram || null,
-          how_did_you_hear: howDidYouHear || null,
-          has_original_composition: hasOriginalComposition,
-          is_sacem_registered: hasOriginalComposition ? isSacemRegistered : null,
-          allows_broadcast: allowsBroadcast,
-          has_stage_experience: hasStageExperience,
-          stage_experience_details: hasStageExperience ? stageExperienceDetails : null,
-          preferred_audition_date: preferredAuditionDate || null,
-          accepted_rules: acceptedRules,
-        }),
+        body: JSON.stringify(parsed.data),
       })
 
       const data = await res.json()
       if (!res.ok) {
         setError(data.error || "Une erreur est survenue")
-        setIsLoading(false)
         setIsSubmitting(false)
         return
       }
 
-      try {
-        await fetch("/api/email/send", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "application_submitted",
-            email: "",  // The API route will use session data
-            firstName: "",
-            lastName: "",
-            applicationType: applicationType,
-          }),
-        })
-      } catch (emailError) {
-        console.error("Failed to send application email:", emailError)
-      }
-
-      router.push("/dashboard")
+      // Navigation complète pour recharger le tableau de bord avec la nouvelle candidature.
+      window.location.assign("/dashboard")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Une erreur est survenue")
-      setIsLoading(false)
       setIsSubmitting(false)
     }
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} noValidate>
       <Card>
         <CardHeader>
           <CardTitle>Informations générales</CardTitle>
@@ -252,10 +151,7 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
           {/* Application Type */}
           <div className="space-y-3">
             <Label>Type de candidature *</Label>
-            <RadioGroup
-              value={applicationType}
-              onValueChange={(value) => setApplicationType(value as "solo" | "group")}
-            >
+            <RadioGroup value={applicationType} onValueChange={(value) => setApplicationType(value as ApplicationType)}>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="solo" id="solo" />
                 <Label htmlFor="solo" className="font-normal cursor-pointer">
@@ -278,6 +174,7 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
               id="stageName"
               placeholder="Votre nom d'artiste ou nom du groupe"
               required
+              maxLength={100}
               value={stageName}
               onChange={(e) => setStageName(e.target.value)}
             />
@@ -293,7 +190,9 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
                 value={soloBirthDate}
                 onChange={(e) => setSoloBirthDate(e.target.value)}
               />
-              <p className="text-sm text-muted-foreground">Vous devez avoir entre 13 et 23 ans au 31 janvier 2026</p>
+              <p className="text-sm text-muted-foreground">
+                Vous devez avoir entre {SOLO_MIN_AGE} et {SOLO_MAX_AGE} ans au {refLabel}
+              </p>
             </div>
           )}
         </CardContent>
@@ -304,8 +203,8 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
           <CardHeader>
             <CardTitle>Composition du groupe</CardTitle>
             <CardDescription>
-              Tous les membres doivent avoir entre 13 et 25 ans au 31 janvier 2026. La moyenne d'âge du groupe doit être
-              de 23 ans maximum.
+              Tous les membres doivent avoir entre {GROUP_MEMBER_MIN_AGE} et {GROUP_MEMBER_MAX_AGE} ans au {refLabel}. La
+              moyenne d&#39;âge du groupe doit être de {GROUP_AVERAGE_MAX_AGE} ans maximum.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -313,8 +212,14 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
               <div key={index} className="p-4 border rounded-lg space-y-4 bg-muted/30">
                 <div className="flex items-center justify-between">
                   <h4 className="font-semibold">Membre {index + 1}</h4>
-                  {groupMembers.length > 1 && (
-                    <Button type="button" variant="ghost" size="sm" onClick={() => removeGroupMember(index)}>
+                  {groupMembers.length > 2 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeGroupMember(index)}
+                      aria-label={`Retirer le membre ${index + 1}`}
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   )}
@@ -325,6 +230,7 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
                     <Input
                       id={`firstName-${index}`}
                       required
+                      maxLength={100}
                       value={member.firstName}
                       onChange={(e) => updateGroupMember(index, "firstName", e.target.value)}
                     />
@@ -334,6 +240,7 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
                     <Input
                       id={`lastName-${index}`}
                       required
+                      maxLength={100}
                       value={member.lastName}
                       onChange={(e) => updateGroupMember(index, "lastName", e.target.value)}
                     />
@@ -372,12 +279,16 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
               id="biography"
               placeholder="Présentez votre parcours, vos influences, votre projet musical..."
               required
+              minLength={BIOGRAPHY_MIN_LENGTH}
+              maxLength={5000}
               rows={6}
               value={biography}
               onChange={(e) => setBiography(e.target.value)}
               className="resize-none"
             />
-            <p className="text-sm text-muted-foreground">Minimum 100 caractères</p>
+            <p className="text-sm text-muted-foreground">
+              Minimum {BIOGRAPHY_MIN_LENGTH} caractères ({biography.trim().length}/{BIOGRAPHY_MIN_LENGTH})
+            </p>
           </div>
 
           {/* Musical Style */}
@@ -387,6 +298,7 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
               id="musicalStyle"
               placeholder="Rock, Pop, Folk, Électro, Jazz, etc."
               required
+              maxLength={100}
               value={musicalStyle}
               onChange={(e) => setMusicalStyle(e.target.value)}
             />
@@ -398,6 +310,7 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
             <Input
               id="instagram"
               placeholder="@votre_compte"
+              maxLength={100}
               value={instagram}
               onChange={(e) => setInstagram(e.target.value)}
             />
@@ -410,7 +323,7 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
               <Checkbox
                 id="hasOriginalComposition"
                 checked={hasOriginalComposition}
-                onCheckedChange={(checked) => setHasOriginalComposition(checked as boolean)}
+                onCheckedChange={(checked) => setHasOriginalComposition(checked === true)}
               />
               <Label htmlFor="hasOriginalComposition" className="font-normal cursor-pointer">
                 Je présenterai une composition originale
@@ -423,7 +336,7 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
                   <Checkbox
                     id="isSacemRegistered"
                     checked={isSacemRegistered}
-                    onCheckedChange={(checked) => setIsSacemRegistered(checked as boolean)}
+                    onCheckedChange={(checked) => setIsSacemRegistered(checked === true)}
                   />
                   <Label htmlFor="isSacemRegistered" className="font-normal cursor-pointer">
                     Cette composition est enregistrée à la SACEM
@@ -438,10 +351,10 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
             <Checkbox
               id="allowsBroadcast"
               checked={allowsBroadcast}
-              onCheckedChange={(checked) => setAllowsBroadcast(checked as boolean)}
+              onCheckedChange={(checked) => setAllowsBroadcast(checked === true)}
             />
             <Label htmlFor="allowsBroadcast" className="font-normal cursor-pointer">
-              J'autorise la diffusion de ma prestation sur toutes les plateformes
+              J&#39;autorise la diffusion de ma prestation sur toutes les plateformes
             </Label>
           </div>
         </CardContent>
@@ -457,7 +370,7 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
             <Checkbox
               id="hasStageExperience"
               checked={hasStageExperience}
-              onCheckedChange={(checked) => setHasStageExperience(checked as boolean)}
+              onCheckedChange={(checked) => setHasStageExperience(checked === true)}
             />
             <Label htmlFor="hasStageExperience" className="font-normal cursor-pointer">
               Je me suis déjà produit(e) sur scène
@@ -471,6 +384,7 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
                 id="stageExperienceDetails"
                 placeholder="Décrivez vos expériences scéniques (festivals, concerts, événements...)"
                 required={hasStageExperience}
+                maxLength={2000}
                 rows={4}
                 value={stageExperienceDetails}
                 onChange={(e) => setStageExperienceDetails(e.target.value)}
@@ -481,24 +395,30 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
         </CardContent>
       </Card>
 
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Date d'audition</CardTitle>
-          <CardDescription>Choisissez votre date préférée à l'espace Léo Ferré Brest</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <Label htmlFor="preferredAuditionDate">Date de préférence</Label>
-          <Select value={preferredAuditionDate} onValueChange={setPreferredAuditionDate}>
-            <SelectTrigger id="preferredAuditionDate">
-              <SelectValue placeholder="Sélectionnez une date" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="2026-01-31">Samedi 31 janvier 2026</SelectItem>
-              <SelectItem value="2026-02-01">Dimanche 1er février 2026</SelectItem>
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
+      {auditionDates.length > 0 && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Date d&#39;audition</CardTitle>
+            <CardDescription>Choisissez votre date préférée ({venue})</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Label htmlFor="preferredAuditionDate">Date de préférence</Label>
+            <Select value={preferredAuditionDate} onValueChange={setPreferredAuditionDate}>
+              <SelectTrigger id="preferredAuditionDate">
+                <SelectValue placeholder="Sélectionnez une date" />
+              </SelectTrigger>
+              <SelectContent>
+                {auditionDates.map((date) => (
+                  <SelectItem key={date} value={date}>
+                    {formatDateFr(date)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground">Optionnel, sans garantie : le planning est fixé par l&#39;organisation.</p>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="mt-6 border-2 border-primary/20">
         <CardHeader>
@@ -525,11 +445,11 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
             <Checkbox
               id="acceptedRules"
               checked={acceptedRules}
-              onCheckedChange={(checked) => setAcceptedRules(checked as boolean)}
+              onCheckedChange={(checked) => setAcceptedRules(checked === true)}
               className="mt-0.5"
             />
             <Label htmlFor="acceptedRules" className="font-normal cursor-pointer leading-relaxed">
-              J'ai lu et j'accepte le règlement du Tremplin Jeunes en Scène organisé par Pass'Musique *
+              J&#39;ai lu et j&#39;accepte le règlement du Tremplin Jeunes en Scène organisé par Pass&#39;Musique *
             </Label>
           </div>
         </CardContent>
@@ -537,7 +457,7 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
 
       <div className="mt-8 space-y-4">
         {error && (
-          <div className="p-4 bg-destructive/10 border border-destructive rounded-lg">
+          <div className="p-4 bg-destructive/10 border border-destructive rounded-lg" role="alert">
             <p className="text-sm text-destructive">{error}</p>
           </div>
         )}
@@ -551,8 +471,8 @@ export function RegistrationForm({ userId }: RegistrationFormProps) {
           >
             Annuler
           </Button>
-          <Button type="submit" disabled={isLoading || isSubmitting} className="flex-1">
-            {isLoading ? "Envoi en cours..." : "Soumettre ma candidature"}
+          <Button type="submit" disabled={isSubmitting} className="flex-1">
+            {isSubmitting ? "Envoi en cours..." : "Soumettre ma candidature"}
           </Button>
         </div>
       </div>

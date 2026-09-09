@@ -9,73 +9,80 @@ datasource db {
 }
 
 model Profile {
-  id                        String    @id @default(uuid()) @db.Uuid
-  email                     String    @unique
-  password_hash             String
-  first_name                String
-  last_name                 String
-  street_address            String?
-  city                      String?
-  postal_code               String?
-  phone                     String?
-  role                      String    @default("user") // "admin" | "user"
-  accepted_privacy_policy   Boolean   @default(false)
+  id                         String    @id @default(uuid()) @db.Uuid
+  email                      String    @unique
+  password_hash              String
+  first_name                 String
+  last_name                  String
+  street_address             String?
+  city                       String?
+  postal_code                String?
+  phone                      String?
+  role                       String    @default("user") // "admin" | "user"
+  accepted_privacy_policy    Boolean   @default(false)
   privacy_policy_accepted_at DateTime?
-  created_at                DateTime  @default(now())
-  updated_at                DateTime  @updatedAt
+  created_at                 DateTime  @default(now())
+  updated_at                 DateTime  @updatedAt
 
-  application Application?
+  applications          Application[]
+  password_reset_tokens PasswordResetToken[]
 
   @@map("profiles")
 }
 
 model Application {
-  id                       String    @id @default(uuid()) @db.Uuid
-  user_id                  String    @unique @db.Uuid
-  application_type         String    // "solo" | "group"
+  id                       String   @id @default(uuid()) @db.Uuid
+  user_id                  String   @db.Uuid
+  // Édition (année de la finale) à laquelle la candidature est rattachée.
+  edition                  Int      @default(2026)
+  application_type         String // "solo" | "group"
   stage_name               String
   group_members            Json?
   biography                String
   musical_style            String
   instagram                String?
   how_did_you_hear         String?
-  has_original_composition Boolean   @default(false)
+  has_original_composition Boolean  @default(false)
   is_sacem_registered      Boolean?
-  allows_broadcast         Boolean   @default(false)
-  has_stage_experience     Boolean   @default(false)
+  allows_broadcast         Boolean  @default(false)
+  has_stage_experience     Boolean  @default(false)
   stage_experience_details String?
   preferred_audition_date  String?
-  accepted_rules           Boolean   @default(false)
-  status                   String    @default("pending") // "pending" | "validated" | "rejected"
-  time_slot_id             String?   @unique @db.Uuid
-  created_at               DateTime  @default(now())
-  updated_at               DateTime  @updatedAt
+  accepted_rules           Boolean  @default(false)
+  status                   String   @default("pending") // "pending" | "validated" | "rejected"
+  time_slot_id             String?  @unique @db.Uuid
+  created_at               DateTime @default(now())
+  updated_at               DateTime @updatedAt
 
-  profile                  Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  time_slot                TimeSlot? @relation(fields: [time_slot_id], references: [id])
-  technical_sheets         TechnicalSheet[]
-  parental_authorizations  ParentalAuthorization[]
-  audition_tracking        AuditionTracking?
+  profile                 Profile                 @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  time_slot               TimeSlot?               @relation(fields: [time_slot_id], references: [id])
+  technical_sheet         TechnicalSheet?
+  parental_authorizations ParentalAuthorization[]
+  audition_tracking       AuditionTracking?
 
+  @@unique([user_id, edition])
+  @@index([edition])
   @@map("applications")
 }
 
 model TimeSlot {
-  id           String    @id @default(uuid()) @db.Uuid
-  date         String    // stored as "YYYY-MM-DD"
-  start_time   String    // stored as "HH:MM"
-  end_time     String    // stored as "HH:MM"
-  is_available Boolean   @default(true)
-  created_at   DateTime  @default(now())
+  id           String   @id @default(uuid()) @db.Uuid
+  edition      Int      @default(2026)
+  date         String // stored as "YYYY-MM-DD"
+  start_time   String // stored as "HH:MM"
+  end_time     String // stored as "HH:MM"
+  is_available Boolean  @default(true)
+  created_at   DateTime @default(now())
 
-  application  Application?
+  application Application?
 
+  @@index([edition, date])
   @@map("time_slots")
 }
 
 model TechnicalSheet {
-  id             String    @id @default(uuid()) @db.Uuid
-  application_id String    @db.Uuid
+  id             String   @id @default(uuid()) @db.Uuid
+  application_id String   @unique @db.Uuid
   pdf_url        String?
   // Form fields (if filled via form instead of PDF upload)
   sound_engineer String?
@@ -83,24 +90,24 @@ model TechnicalSheet {
   microphones    Json?
   monitoring     String?
   notes          String?
-  created_at     DateTime  @default(now())
-  updated_at     DateTime  @updatedAt
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
 
-  application    Application @relation(fields: [application_id], references: [id], onDelete: Cascade)
+  application Application @relation(fields: [application_id], references: [id], onDelete: Cascade)
 
   @@map("technical_sheets")
 }
 
 model ParentalAuthorization {
-  id             String    @id @default(uuid()) @db.Uuid
-  application_id String    @db.Uuid
-  member_index   Int       @default(0)
+  id             String   @id @default(uuid()) @db.Uuid
+  application_id String   @db.Uuid
+  member_index   Int      @default(0)
   member_name    String?
   pdf_url        String
-  created_at     DateTime  @default(now())
-  updated_at     DateTime  @updatedAt
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
 
-  application    Application @relation(fields: [application_id], references: [id], onDelete: Cascade)
+  application Application @relation(fields: [application_id], references: [id], onDelete: Cascade)
 
   @@unique([application_id, member_index])
   @@map("parental_authorizations")
@@ -119,32 +126,42 @@ model AuditionTracking {
   created_at     DateTime  @default(now())
   updated_at     DateTime  @updatedAt
 
-  application    Application @relation(fields: [application_id], references: [id], onDelete: Cascade)
+  application Application @relation(fields: [application_id], references: [id], onDelete: Cascade)
 
   @@map("audition_tracking")
 }
 
+/// Configuration de la saison en cours (une seule ligne).
 model ScheduleConfig {
-  id           String    @id @default(uuid()) @db.Uuid
-  is_validated Boolean   @default(false)
-  venue        String?   @default("Espace Léo Ferré, Brest")
-  created_at   DateTime  @default(now())
-  updated_at   DateTime  @updatedAt
+  id                     String    @id @default(uuid()) @db.Uuid
+  // Édition en cours (année de la finale), ex. 2027.
+  edition                Int       @default(2026)
+  // Fenêtre d'inscription. Null = pas de borne.
+  registration_opens_at  DateTime?
+  registration_closes_at DateTime?
+  // Dates d'audition ("YYYY-MM-DD"), utilisées pour les créneaux et le choix de date préférée.
+  audition_dates         String[]  @default([])
+  // Date de référence pour le calcul de l'âge ("YYYY-MM-DD"). Null = dernière date d'audition.
+  age_reference_date     String?
+  is_validated           Boolean   @default(false)
+  venue                  String?   @default("Espace Léo Ferré, Brest")
+  created_at             DateTime  @default(now())
+  updated_at             DateTime  @updatedAt
 
   @@map("schedule_config")
 }
 
 model SmtpConfig {
-  id             String  @id @default(uuid()) @db.Uuid
-  smtp_host      String
-  smtp_port      Int     @default(587)
-  smtp_username  String
-  smtp_password  String
+  id              String   @id @default(uuid()) @db.Uuid
+  smtp_host       String
+  smtp_port       Int      @default(587)
+  smtp_username   String
+  smtp_password   String
   smtp_from_email String
-  smtp_from_name String  @default("Tremplin Jeunes en Scène")
-  smtp_secure    Boolean @default(false)
-  created_at     DateTime @default(now())
-  updated_at     DateTime @updatedAt
+  smtp_from_name  String   @default("Tremplin Jeunes en Scène")
+  smtp_secure     Boolean  @default(false)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
 
   @@map("smtp_config")
 }
@@ -157,5 +174,18 @@ model PasswordResetToken {
   used       Boolean  @default(false)
   created_at DateTime @default(now())
 
+  profile Profile @relation(fields: [profile_id], references: [id], onDelete: Cascade)
+
+  @@index([profile_id])
   @@map("password_reset_tokens")
+}
+
+/// Journal léger pour la limitation de débit (connexion, mot de passe oublié, inscription).
+model RateLimitHit {
+  id         String   @id @default(uuid()) @db.Uuid
+  key        String
+  created_at DateTime @default(now())
+
+  @@index([key, created_at])
+  @@map("rate_limit_hits")
 }

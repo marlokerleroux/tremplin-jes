@@ -1,34 +1,38 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { requireApiUser } from "@/lib/auth-helpers"
+import { getSeasonConfig } from "@/lib/season-config"
+import { deleteBlobs } from "@/lib/blob-storage"
 
 export async function DELETE() {
   try {
-    const session = await auth()
+    const authResult = await requireApiUser()
+    if (!authResult.ok) return authResult.response
+    const { session } = authResult
 
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
-    }
-
-    // Get user's application
+    const config = await getSeasonConfig()
     const application = await prisma.application.findUnique({
-      where: { user_id: session.user.id },
-      select: { id: true, status: true },
+      where: { user_id_edition: { user_id: session.user.id, edition: config.edition } },
+      select: {
+        id: true,
+        status: true,
+        technical_sheet: { select: { pdf_url: true } },
+        parental_authorizations: { select: { pdf_url: true } },
+      },
     })
 
     if (!application) {
       return NextResponse.json({ error: "Aucune candidature trouvée" }, { status: 404 })
     }
 
-    // Check if application is validated
     if (application.status === "validated") {
       return NextResponse.json({ error: "Impossible de supprimer une candidature validée" }, { status: 403 })
     }
 
-    // Delete application (cascade will handle related records: technical_sheets, parental_authorizations, audition_tracking)
-    await prisma.application.delete({
-      where: { id: application.id },
-    })
+    // La suppression en cascade gère fiche technique, autorisations parentales et suivi d'audition.
+    await prisma.application.delete({ where: { id: application.id } })
+
+    await deleteBlobs([application.technical_sheet?.pdf_url, ...application.parental_authorizations.map((a) => a.pdf_url)])
 
     return NextResponse.json({ success: true })
   } catch (error) {

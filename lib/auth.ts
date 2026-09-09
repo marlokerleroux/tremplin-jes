@@ -5,6 +5,5 @@ export const { handlers, auth, signIn, signOut } = NextAuth(authConfig)
 
 export async function handleSignOut() {
   "use server"
-  const { signOut: nextAuthSignOut } = await import("@/lib/auth")
-  await nextAuthSignOut({ redirectTo: "/auth/login" })
+  await signOut({ redirectTo: "/auth/login" })
 }

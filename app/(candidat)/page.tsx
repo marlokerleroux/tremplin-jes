@@ -7,6 +7,8 @@ import { AlertCircle, Music } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { Footer } from "@/components/footer"
+import { getSeasonState } from "@/lib/season-config"
+import { formatDateTimeFr } from "@/lib/season"
 
 export default async function HomePage() {
   const session = await getOptionalAuth()
@@ -19,7 +21,10 @@ export default async function HomePage() {
     }
   }
 
-  const registrationsClosed = new Date() >= new Date("2026-01-01T00:00:00")
+  const season = await getSeasonState()
+  const registrationsOpen = season.registration === "open"
+  const closesAt = season.config.registration_closes_at
+  const opensAt = season.config.registration_opens_at
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -33,6 +38,7 @@ export default async function HomePage() {
               width={300}
               height={90}
               className="h-20 w-auto"
+              priority
             />
           </div>
 
@@ -44,12 +50,24 @@ export default async function HomePage() {
             </p>
           </div>
 
-          {registrationsClosed && (
+          {season.registration === "closed" && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Inscriptions closes</AlertTitle>
               <AlertDescription>
-                Les inscriptions au Tremplin Jeunes en Scène se sont clôturées le 31 décembre 2025.
+                Les inscriptions à l&#39;édition {season.config.edition} du Tremplin Jeunes en Scène sont terminées
+                {closesAt ? ` depuis le ${formatDateTimeFr(closesAt)}` : ""}.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {season.registration === "not_yet_open" && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Ouverture prochaine</AlertTitle>
+              <AlertDescription>
+                Les inscriptions à l&#39;édition {season.config.edition} ouvriront
+                {opensAt ? ` le ${formatDateTimeFr(opensAt)}` : " prochainement"}.
               </AlertDescription>
             </Alert>
           )}
@@ -58,7 +76,7 @@ export default async function HomePage() {
           <div className="grid gap-4">
             <Card
               className={`border-2 transition-colors ${
-                registrationsClosed ? "border-muted/20 opacity-60" : "border-primary/20 hover:border-primary/40"
+                registrationsOpen ? "border-primary/20 hover:border-primary/40" : "border-muted/20 opacity-60"
               }`}
             >
               <CardHeader>
@@ -67,19 +85,19 @@ export default async function HomePage() {
                   Nouvelle candidature
                 </CardTitle>
                 <CardDescription>
-                  {registrationsClosed
-                    ? "Les inscriptions sont closes"
-                    : "Créez votre compte et déposez votre candidature"}
+                  {registrationsOpen
+                    ? `Créez votre compte et déposez votre candidature pour l'édition ${season.config.edition}`
+                    : "Les inscriptions ne sont pas ouvertes"}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <Button
-                  asChild={!registrationsClosed}
+                  asChild={registrationsOpen}
                   className="w-full bg-primary hover:bg-primary/90"
                   size="lg"
-                  disabled={registrationsClosed}
+                  disabled={!registrationsOpen}
                 >
-                  {registrationsClosed ? <span>Inscriptions closes</span> : <Link href="/auth/signup">S'inscrire</Link>}
+                  {registrationsOpen ? <Link href="/auth/signup">S&#39;inscrire</Link> : <span>Inscriptions fermées</span>}
                 </Button>
               </CardContent>
             </Card>

@@ -1,28 +1,26 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { requireApiAdmin } from "@/lib/auth-helpers"
+import { applicationUpdateSchema } from "@/lib/validation/application"
+import { formatZodError } from "@/lib/validation/common"
 
 export async function PUT(request: Request) {
+  const authResult = await requireApiAdmin()
+  if (!authResult.ok) return authResult.response
+
   try {
-    const session = await auth()
+    const parsed = applicationUpdateSchema.safeParse(await request.json().catch(() => null))
+    if (!parsed.success) {
+      return NextResponse.json({ error: formatZodError(parsed.error) }, { status: 400 })
+    }
+    const { applicationId, updates } = parsed.data
 
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
+    const existing = await prisma.application.findUnique({ where: { id: applicationId }, select: { id: true } })
+    if (!existing) {
+      return NextResponse.json({ error: "Candidature introuvable" }, { status: 404 })
     }
 
-    if (session.user.role !== "admin") {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 })
-    }
-
-    const body = await request.json()
-    const { applicationId, updates } = body
-
-    if (!applicationId) {
-      return NextResponse.json({ error: "ID de candidature manquant" }, { status: 400 })
-    }
-
-    // Update the application
-    const data = await prisma.application.update({
+    await prisma.application.update({
       where: { id: applicationId },
       data: {
         stage_name: updates.stage_name,
@@ -30,14 +28,14 @@ export async function PUT(request: Request) {
         biography: updates.biography,
         instagram: updates.instagram,
         has_original_composition: updates.has_original_composition,
-        is_sacem_registered: updates.is_sacem_registered,
+        is_sacem_registered: updates.has_original_composition ? updates.is_sacem_registered : null,
         has_stage_experience: updates.has_stage_experience,
-        stage_experience_details: updates.stage_experience_details,
+        stage_experience_details: updates.has_stage_experience ? updates.stage_experience_details : null,
         group_members: updates.group_members,
       },
     })
 
-    return NextResponse.json({ success: true, data })
+    return NextResponse.json({ success: true })
   } catch (error) {
     console.error("Error in update application:", error)
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 })

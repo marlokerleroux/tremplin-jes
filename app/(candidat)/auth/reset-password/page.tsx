@@ -36,8 +36,8 @@ export default function ResetPasswordPage() {
       return
     }
 
-    if (password.length < 6) {
-      setError("Le mot de passe doit contenir au moins 6 caractères")
+    if (password.length < 8) {
+      setError("Le mot de passe doit contenir au moins 8 caractères")
       setIsLoading(false)
       return
     }
@@ -105,7 +105,9 @@ export default function ResetPasswordPage() {
                   <Input
                     id="password"
                     type="password"
-                    placeholder="Minimum 6 caractères"
+                    placeholder="Minimum 8 caractères"
+                    autoComplete="new-password"
+                    minLength={8}
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -117,12 +119,17 @@ export default function ResetPasswordPage() {
                     id="confirmPassword"
                     type="password"
                     placeholder="Retapez votre mot de passe"
+                    autoComplete="new-password"
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                   />
                 </div>
-                {error && <p className="text-sm text-destructive">{error}</p>}
+                {error && (
+                  <p className="text-sm text-destructive" role="alert">
+                    {error}
+                  </p>
+                )}
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? "Réinitialisation..." : "Réinitialiser le mot de passe"}
                 </Button>

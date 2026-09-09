@@ -9,16 +9,16 @@ import {
   getPasswordResetEmail,
 } from "./templates"
 
-// Récupérer la configuration SMTP depuis la base de données
-async function getSMTPConfig(): Promise<SMTPConfig | null> {
-  try {
-    const data = await prisma.smtpConfig.findFirst()
+export type EmailResult = { success: boolean; error?: string }
 
+/** Configuration SMTP depuis la base de données (null si non configurée). */
+export async function getSMTPConfig(): Promise<SMTPConfig | null> {
+  try {
+    const data = await prisma.smtpConfig.findFirst({ orderBy: { created_at: "asc" } })
     if (!data) {
       console.error("[email] No SMTP config found in database")
       return null
     }
-
     return {
       smtp_host: data.smtp_host,
       smtp_port: data.smtp_port,
@@ -34,63 +34,37 @@ async function getSMTPConfig(): Promise<SMTPConfig | null> {
   }
 }
 
-// 1. Envoyer l'email de bienvenue
-export async function sendWelcomeEmail(email: string, firstName: string, lastName: string) {
+async function deliver(to: string, build: () => ReturnType<typeof getWelcomeEmail>, label: string): Promise<EmailResult> {
   const smtpConfig = await getSMTPConfig()
   if (!smtpConfig) {
-    console.error("[email] SMTP not configured, skipping welcome email")
+    console.error(`[email] SMTP not configured, skipping ${label} email`)
     return { success: false, error: "SMTP not configured" }
   }
-
-  const template = getWelcomeEmail({ firstName, lastName })
-  return await sendEmail(email, template, smtpConfig)
+  return sendEmail(to, build(), smtpConfig)
 }
 
-// 2. Envoyer l'email de confirmation de candidature
-export async function sendApplicationSubmittedEmail(
-  email: string,
-  firstName: string,
-  lastName: string,
-  applicationType: string,
-) {
-  const smtpConfig = await getSMTPConfig()
-  if (!smtpConfig) {
-    console.error("[email] SMTP not configured, skipping application submitted email")
-    return { success: false, error: "SMTP not configured" }
-  }
-
-  const template = getApplicationSubmittedEmail({ firstName, lastName, applicationType })
-  return await sendEmail(email, template, smtpConfig)
+// 1. Bienvenue après création du compte
+export function sendWelcomeEmail(email: string, firstName: string, lastName: string) {
+  return deliver(email, () => getWelcomeEmail({ firstName, lastName }), "welcome")
 }
 
-// 3. Envoyer l'email de confirmation de fiche technique
-export async function sendTechnicalSheetSubmittedEmail(email: string, firstName: string, lastName: string) {
-  const smtpConfig = await getSMTPConfig()
-  if (!smtpConfig) {
-    console.error("[email] SMTP not configured, skipping technical sheet submitted email")
-    return { success: false, error: "SMTP not configured" }
-  }
-
-  const template = getTechnicalSheetSubmittedEmail({ firstName, lastName })
-  return await sendEmail(email, template, smtpConfig)
+// 2. Confirmation de candidature
+export function sendApplicationSubmittedEmail(email: string, firstName: string, lastName: string, applicationType: string) {
+  return deliver(email, () => getApplicationSubmittedEmail({ firstName, lastName, applicationType }), "application submitted")
 }
 
-export { sendTechnicalSheetSubmittedEmail as sendTechnicalSheetUploadedEmail }
-
-// 4. Envoyer l'email de validation de candidature
-export async function sendApplicationValidatedEmail(email: string, firstName: string, lastName: string) {
-  const smtpConfig = await getSMTPConfig()
-  if (!smtpConfig) {
-    console.error("[email] SMTP not configured, skipping application validated email")
-    return { success: false, error: "SMTP not configured" }
-  }
-
-  const template = getApplicationValidatedEmail({ firstName, lastName })
-  return await sendEmail(email, template, smtpConfig)
+// 3. Confirmation de fiche technique
+export function sendTechnicalSheetSubmittedEmail(email: string, firstName: string, lastName: string) {
+  return deliver(email, () => getTechnicalSheetSubmittedEmail({ firstName, lastName }), "technical sheet")
 }
 
-// 5. Envoyer l'email d'attribution de créneau
-export async function sendTimeSlotAssignedEmail(
+// 4. Validation de candidature
+export function sendApplicationValidatedEmail(email: string, firstName: string, lastName: string) {
+  return deliver(email, () => getApplicationValidatedEmail({ firstName, lastName }), "application validated")
+}
+
+// 5. Attribution de créneau
+export function sendTimeSlotAssignedEmail(
   email: string,
   firstName: string,
   lastName: string,
@@ -98,29 +72,10 @@ export async function sendTimeSlotAssignedEmail(
   time: string,
   venue: string,
 ) {
-  const smtpConfig = await getSMTPConfig()
-  if (!smtpConfig) {
-    console.error("[email] SMTP not configured, skipping time slot assigned email")
-    return { success: false, error: "SMTP not configured" }
-  }
-
-  const template = getTimeSlotAssignedEmail({ firstName, lastName, date, time, venue })
-  return await sendEmail(email, template, smtpConfig)
+  return deliver(email, () => getTimeSlotAssignedEmail({ firstName, lastName, date, time, venue }), "time slot assigned")
 }
 
-// 6. Envoyer l'email de réinitialisation de mot de passe
-export async function sendPasswordResetEmail(
-  email: string,
-  firstName: string,
-  lastName: string,
-  resetUrl: string,
-) {
-  const smtpConfig = await getSMTPConfig()
-  if (!smtpConfig) {
-    console.error("[email] SMTP not configured, skipping password reset email")
-    return { success: false, error: "SMTP not configured" }
-  }
-
-  const template = getPasswordResetEmail({ firstName, lastName, resetUrl })
-  return await sendEmail(email, template, smtpConfig)
+// 6. Réinitialisation de mot de passe
+export function sendPasswordResetEmail(email: string, firstName: string, lastName: string, resetUrl: string) {
+  return deliver(email, () => getPasswordResetEmail({ firstName, lastName, resetUrl }), "password reset")
 }

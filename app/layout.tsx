@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { Montserrat, Geist_Mono } from "next/font/google"
 import "./globals.css"
 import { Suspense } from "react"
+import { Toaster } from "sonner"
 import { CookieConsentBanner } from "@/components/cookie-consent-banner"
 
 const montserrat = Montserrat({
@@ -32,6 +33,7 @@ export default function RootLayout({
       <body className={`font-sans ${montserrat.variable} ${geistMono.variable}`}>
         <Suspense fallback={null}>{children}</Suspense>
         <CookieConsentBanner />
+        <Toaster richColors closeButton position="top-right" />
       </body>
     </html>
   )

@@ -9,6 +9,10 @@ import Link from "next/link"
 import { handleSignOut } from "@/lib/auth"
 import Image from "next/image"
 import { DeleteApplicationButton } from "@/components/delete-application-button"
+import { getCurrentApplication, getSeasonState } from "@/lib/season-config"
+import { computeAgeAt, formatDateFr, formatDateShortFr, isMinorAt } from "@/lib/season"
+import { normalizeGroupMembers } from "@/lib/admin-data"
+import { parentalAuthorizationUrl, technicalSheetUrl } from "@/lib/documents"
 
 export default async function DashboardPage() {
   const session = await requireAuth()
@@ -17,61 +21,29 @@ export default async function DashboardPage() {
     redirect("/admin")
   }
 
-  // Get user profile
-  const fullProfile = await prisma.profile.findUnique({ where: { id: session.user.id } })
+  const [fullProfile, season] = await Promise.all([
+    prisma.profile.findUnique({ where: { id: session.user.id } }),
+    getSeasonState(),
+  ])
 
-  const application = await prisma.application.findUnique({
-    where: { user_id: session.user.id },
-    include: {
-      time_slot: true,
-      technical_sheets: true,
-      parental_authorizations: true,
-    },
-  }) as any
-
-  // Map time_slot to time_slots for template compatibility
-  if (application) {
-    application.time_slots = application.time_slot
-  }
-
-  const scheduleConfigRecord = await prisma.scheduleConfig.findFirst({
-    orderBy: { created_at: "desc" },
+  const application = await getCurrentApplication(session.user.id, season.config.edition, {
+    time_slot: true,
+    technical_sheet: true,
+    parental_authorizations: true,
   })
 
-  const scheduleConfig = scheduleConfigRecord || null
+  const members = application ? normalizeGroupMembers(application.group_members) : []
+  const minorMembers = members
+    .map((member, index) => ({
+      index,
+      firstName: member.firstName,
+      lastName: member.lastName,
+      age: computeAgeAt(member.birthDate, season.ageReferenceDate),
+    }))
+    .filter((member) => member.age !== null && isMinorAt(members[member.index].birthDate, season.ageReferenceDate))
 
-  const minorMembers = application
-    ? (() => {
-        const auditionDate = new Date(2026, 0, 31) // 31 janvier 2026
-
-        const calculateAgeAtAudition = (birthDate: string): number => {
-          const birth = new Date(birthDate)
-          let age = auditionDate.getFullYear() - birth.getFullYear()
-          const monthDiff = auditionDate.getMonth() - birth.getMonth()
-
-          if (monthDiff < 0 || (monthDiff === 0 && auditionDate.getDate() < birth.getDate())) {
-            age--
-          }
-
-          return age
-        }
-
-        const members = application.group_members as any[]
-        if (!members || members.length === 0) return []
-
-        return members
-          .map((member, index) => ({
-            index,
-            firstName: member.firstName || "",
-            lastName: member.lastName || "",
-            birthDate: member.birthDate,
-            age: member.birthDate ? calculateAgeAtAudition(member.birthDate) : null,
-          }))
-          .filter((member) => member.age !== null && member.age < 18)
-      })()
-    : []
-
-  const needsParentalAuth = minorMembers.length > 0
+  const hasTechnicalSheet = Boolean(application?.technical_sheet?.pdf_url)
+  const canApply = season.registration === "open"
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -100,24 +72,7 @@ export default async function DashboardPage() {
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "Non spécifiée"
-    return new Date(dateString).toLocaleDateString("fr-FR", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    })
-  }
-
-  const formatTimeSlotDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("fr-FR", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    })
-  }
-
-  const formatTime = (timeString: string) => {
-    return timeString.slice(0, 5) // Extract HH:MM from HH:MM:SS
+    return formatDateFr(dateString, { weekday: false })
   }
 
   return (
@@ -128,7 +83,7 @@ export default async function DashboardPage() {
           <div className="flex items-center gap-2">
             <Image
               src="/images/design-mode/logo_sans_fond.png"
-              alt="Tremplin Musical Breton"
+              alt="Tremplin Jeunes en Scène"
               width={200}
               height={48}
               className="h-12 w-auto"
@@ -149,7 +104,9 @@ export default async function DashboardPage() {
           <h2 className="text-3xl font-bold text-indigo-900 mb-2">
             Bonjour, {fullProfile?.first_name} {fullProfile?.last_name}
           </h2>
-          <p className="text-gray-700 leading-relaxed">Bienvenue sur votre espace candidat</p>
+          <p className="text-gray-700 leading-relaxed">
+            Bienvenue sur votre espace candidat · édition {season.config.edition}
+          </p>
         </div>
 
         {/* No Application State */}
@@ -157,15 +114,27 @@ export default async function DashboardPage() {
           <Card className="border-2 border-dashed">
             <CardHeader className="text-center">
               <CardTitle>Aucune candidature</CardTitle>
-              <CardDescription>Vous n'avez pas encore soumis de candidature</CardDescription>
+              <CardDescription>
+                {canApply
+                  ? `Vous n'avez pas encore soumis de candidature pour l'édition ${season.config.edition}`
+                  : season.registration === "closed"
+                    ? "Les inscriptions de cette édition sont closes"
+                    : "Les inscriptions ne sont pas encore ouvertes"}
+              </CardDescription>
             </CardHeader>
             <CardContent className="flex justify-center pb-6">
-              <Button asChild size="lg">
-                <Link href="/apply">
-                  <Plus className="h-5 w-5 mr-2" />
-                  Créer ma candidature
-                </Link>
-              </Button>
+              {canApply ? (
+                <Button asChild size="lg">
+                  <Link href="/apply">
+                    <Plus className="h-5 w-5 mr-2" />
+                    Créer ma candidature
+                  </Link>
+                </Button>
+              ) : (
+                <Button size="lg" disabled>
+                  Inscriptions fermées
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}
@@ -173,12 +142,12 @@ export default async function DashboardPage() {
         {/* Application Exists */}
         {application && (
           <div className="space-y-6">
-            {application.time_slots && scheduleConfig?.is_validated === true && (
+            {application.time_slot && season.config.is_validated && (
               <Card className="border-2 border-green-500 bg-gradient-to-br from-green-50 to-emerald-50">
                 <CardHeader>
                   <div className="flex items-center gap-2">
                     <Calendar className="h-6 w-6 text-green-600" />
-                    <CardTitle className="text-green-900">Votre créneau d'audition</CardTitle>
+                    <CardTitle className="text-green-900">Votre créneau d&#39;audition</CardTitle>
                   </div>
                   <CardDescription>Votre audition a été programmée !</CardDescription>
                 </CardHeader>
@@ -188,9 +157,7 @@ export default async function DashboardPage() {
                       <Calendar className="h-5 w-5 text-green-600 mt-0.5" />
                       <div>
                         <p className="text-sm font-medium text-muted-foreground">Date</p>
-                        <p className="font-semibold text-green-900">
-                          {formatTimeSlotDate(application.time_slots.date)}
-                        </p>
+                        <p className="font-semibold text-green-900">{formatDateFr(application.time_slot.date)}</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
@@ -198,8 +165,7 @@ export default async function DashboardPage() {
                       <div>
                         <p className="text-sm font-medium text-muted-foreground">Horaire</p>
                         <p className="font-semibold text-green-900">
-                          {formatTime(application.time_slots.start_time)} -{" "}
-                          {formatTime(application.time_slots.end_time)}
+                          {application.time_slot.start_time} - {application.time_slot.end_time}
                         </p>
                       </div>
                     </div>
@@ -207,13 +173,13 @@ export default async function DashboardPage() {
                       <MapPin className="h-5 w-5 text-green-600 mt-0.5" />
                       <div>
                         <p className="text-sm font-medium text-muted-foreground">Lieu</p>
-                        <p className="font-semibold text-green-900">Espace Léo Ferré, Brest</p>
+                        <p className="font-semibold text-green-900">{season.venue}</p>
                       </div>
                     </div>
                   </div>
                   <div className="bg-white/60 border border-green-200 rounded-lg p-4">
                     <p className="text-sm text-green-900 leading-relaxed">
-                      📧 Un email de confirmation avec tous les détails vous sera envoyé. Merci de vous présenter au
+                      📧 Un email de confirmation avec tous les détails vous a été envoyé. Merci de vous présenter au
                       moins 30 minutes avant votre créneau.
                     </p>
                   </div>
@@ -231,13 +197,15 @@ export default async function DashboardPage() {
                     {application.status !== "validated" && <DeleteApplicationButton />}
                   </div>
                 </div>
-                <CardDescription>Candidature soumise le {formatDate(application.created_at)}</CardDescription>
+                <CardDescription>
+                  Candidature soumise le {formatDate(application.created_at.toISOString().slice(0, 10))}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {application.status === "pending" && (
                   <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
                     <p className="text-sm text-orange-900 leading-relaxed">
-                      Si ce n'est pas déjà fait, merci de penser à déposer votre fiche technique. Vous recevrez une
+                      Si ce n&#39;est pas déjà fait, merci de penser à déposer votre fiche technique. Vous recevrez une
                       notification par email dès que votre candidature sera validée.
                     </p>
                   </div>
@@ -245,7 +213,7 @@ export default async function DashboardPage() {
                 {application.status === "validated" && (
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                     <p className="text-sm text-green-900 leading-relaxed">
-                      Félicitations ! Votre candidature a été validée. Vous recevrez prochainement plus d'informations
+                      Félicitations ! Votre candidature a été validée. Vous recevrez prochainement plus d&#39;informations
                       concernant votre audition.
                     </p>
                   </div>
@@ -253,8 +221,8 @@ export default async function DashboardPage() {
                 {application.status === "rejected" && (
                   <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                     <p className="text-sm text-red-900 leading-relaxed">
-                      Malheureusement, votre candidature n'a pas été retenue cette année. Nous vous encourageons à
-                      retenter votre chance l'année prochaine.
+                      Malheureusement, votre candidature n&#39;a pas été retenue cette année. Nous vous encourageons à
+                      retenter votre chance l&#39;année prochaine.
                     </p>
                   </div>
                 )}
@@ -279,14 +247,18 @@ export default async function DashboardPage() {
                     <div className="flex-1">
                       <p className="font-medium">Fiche technique</p>
                       <p className="text-sm text-muted-foreground">
-                        {application.technical_sheets && application.technical_sheets.length > 0
-                          ? "Fiche technique envoyée"
-                          : "Veuillez remplir votre fiche technique"}
+                        {hasTechnicalSheet ? (
+                          <a href={technicalSheetUrl(application.id)} target="_blank" rel="noopener noreferrer" className="underline">
+                            Fiche technique envoyée (voir le PDF)
+                          </a>
+                        ) : (
+                          "Veuillez envoyer votre fiche technique"
+                        )}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    {application.technical_sheets && application.technical_sheets.length > 0 ? (
+                    {hasTechnicalSheet ? (
                       <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                         Envoyée
                       </Badge>
@@ -295,15 +267,9 @@ export default async function DashboardPage() {
                         À compléter
                       </Badge>
                     )}
-                    <Button
-                      asChild
-                      variant={
-                        application.technical_sheets && application.technical_sheets.length > 0 ? "outline" : "default"
-                      }
-                      size="sm"
-                    >
+                    <Button asChild variant={hasTechnicalSheet ? "outline" : "default"} size="sm">
                       <Link href="/technical-sheet">
-                        {application.technical_sheets && application.technical_sheets.length > 0 ? (
+                        {hasTechnicalSheet ? (
                           "Voir / Modifier"
                         ) : (
                           <>
@@ -317,9 +283,7 @@ export default async function DashboardPage() {
                 </div>
 
                 {minorMembers.map((member) => {
-                  const memberAuth = application.parental_authorizations?.find(
-                    (auth: any) => auth.member_index === member.index,
-                  )
+                  const memberAuth = application.parental_authorizations.find((auth) => auth.member_index === member.index)
                   const memberName =
                     application.application_type === "solo"
                       ? "Autorisation parentale"
@@ -332,9 +296,18 @@ export default async function DashboardPage() {
                         <div className="flex-1">
                           <p className="font-medium">{memberName}</p>
                           <p className="text-sm text-muted-foreground">
-                            {memberAuth
-                              ? "Autorisation parentale envoyée"
-                              : `Obligatoire - ${member.firstName} aura ${member.age} ans le 31/01/2026`}
+                            {memberAuth ? (
+                              <a
+                                href={parentalAuthorizationUrl(application.id, member.index)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="underline"
+                              >
+                                Autorisation parentale envoyée (voir le PDF)
+                              </a>
+                            ) : (
+                              `Obligatoire - ${member.firstName || "vous"} aur${member.firstName ? "a" : "ez"} ${member.age} ans le ${formatDateShortFr(season.ageReferenceDate)}`
+                            )}
                           </p>
                         </div>
                       </div>
@@ -349,17 +322,13 @@ export default async function DashboardPage() {
                           </Badge>
                         )}
                         <Button asChild variant={memberAuth ? "outline" : "default"} size="sm">
-                          <Link
-                            href={`/parental-authorization?memberIndex=${member.index}&memberName=${encodeURIComponent(
-                              `${member.firstName} ${member.lastName}`,
-                            )}`}
-                          >
+                          <Link href={`/parental-authorization?memberIndex=${member.index}`}>
                             {memberAuth ? (
                               "Voir / Modifier"
                             ) : (
                               <>
                                 <Plus className="h-4 w-4 mr-2" />
-                                Uploader
+                                Envoyer
                               </>
                             )}
                           </Link>
@@ -410,7 +379,7 @@ export default async function DashboardPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Calendar className="h-5 w-5 text-primary" />
-                    Date d'audition
+                    Date d&#39;audition
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -432,7 +401,7 @@ export default async function DashboardPage() {
               </Card>
 
               {/* Group Members */}
-              {application.application_type === "group" && application.group_members && (
+              {application.application_type === "group" && members.length > 0 && (
                 <Card className="md:col-span-2">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -442,7 +411,7 @@ export default async function DashboardPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {(application.group_members as any[]).map((member: any, index: number) => (
+                      {members.map((member, index) => (
                         <div key={index} className="p-3 bg-muted/50 rounded-lg">
                           <p className="font-medium">
                             {member.firstName} {member.lastName}
@@ -472,9 +441,7 @@ export default async function DashboardPage() {
                     <CardTitle>Expérience scénique</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                      {application.stage_experience_details}
-                    </p>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{application.stage_experience_details}</p>
                   </CardContent>
                 </Card>
               )}

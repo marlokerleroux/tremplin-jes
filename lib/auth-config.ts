@@ -2,8 +2,12 @@ import type { NextAuthConfig } from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
+import { authConfigEdge } from "@/lib/auth-config.edge"
+import { loginSchema } from "@/lib/validation/auth"
+import { hitRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 
 export const authConfig: NextAuthConfig = {
+  ...authConfigEdge,
   providers: [
     Credentials({
       credentials: {
@@ -11,19 +15,20 @@ export const authConfig: NextAuthConfig = {
         password: { label: "Mot de passe", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null
+        const parsed = loginSchema.safeParse(credentials)
+        if (!parsed.success) return null
+        const { email, password } = parsed.data
 
-        const profile = await prisma.profile.findUnique({
-          where: { email: credentials.email as string },
-        })
+        const { limited } = await hitRateLimit(`login:${email}`, RATE_LIMITS.login.limit, RATE_LIMITS.login.windowMs)
+        if (limited) {
+          console.warn("[auth] login rate limited for", email)
+          return null
+        }
 
+        const profile = await prisma.profile.findUnique({ where: { email } })
         if (!profile) return null
 
-        const isValid = await bcrypt.compare(
-          credentials.password as string,
-          profile.password_hash,
-        )
-
+        const isValid = await bcrypt.compare(password, profile.password_hash)
         if (!isValid) return null
 
         return {
@@ -37,30 +42,4 @@ export const authConfig: NextAuthConfig = {
       },
     }),
   ],
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id
-        token.role = (user as any).role
-        token.firstName = (user as any).firstName
-        token.lastName = (user as any).lastName
-      }
-      return token
-    },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id as string
-        session.user.role = token.role as string
-        session.user.firstName = token.firstName as string
-        session.user.lastName = token.lastName as string
-      }
-      return session
-    },
-  },
-  pages: {
-    signIn: "/auth/login",
-  },
-  session: {
-    strategy: "jwt",
-  },
 }

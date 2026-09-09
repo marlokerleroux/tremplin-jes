@@ -1,37 +1,36 @@
 import { redirect } from "next/navigation"
 import { requireAuth } from "@/lib/auth-helpers"
-import { prisma } from "@/lib/prisma"
 import { ParentalAuthorizationUpload } from "@/components/parental-authorization-upload"
+import { getCurrentApplication, getSeasonConfig } from "@/lib/season-config"
+import { normalizeGroupMembers } from "@/lib/admin-data"
+import { parentalAuthorizationUrl } from "@/lib/documents"
 
 export default async function ParentalAuthorizationPage({
   searchParams,
 }: {
-  searchParams: { memberIndex?: string; memberName?: string }
+  searchParams: Promise<{ memberIndex?: string }>
 }) {
   const session = await requireAuth()
+  const params = await searchParams
+  const parsedIndex = Number.parseInt(params.memberIndex ?? "0", 10)
+  const memberIndex = Number.isInteger(parsedIndex) && parsedIndex >= 0 ? parsedIndex : 0
 
-  const memberIndex = searchParams.memberIndex ? Number.parseInt(searchParams.memberIndex) : 0
-  const memberName = searchParams.memberName || "Candidat"
-
-  // Récupérer l'application de l'utilisateur
-  const application = await prisma.application.findUnique({
-    where: { user_id: session.user.id },
+  const config = await getSeasonConfig()
+  const application = await getCurrentApplication(session.user.id, config.edition, {
+    parental_authorizations: { where: { member_index: memberIndex } },
   })
-
   if (!application) {
     redirect("/apply")
   }
 
-  const authorization = await prisma.parentalAuthorization.findUnique({
-    where: {
-      application_id_member_index: {
-        application_id: application.id,
-        member_index: memberIndex,
-      },
-    },
-  })
-
-  // Vérifier si la candidature est validée (verrouillée)
+  const members = normalizeGroupMembers(application.group_members)
+  const member = members[memberIndex]
+  if (!member) {
+    redirect("/dashboard")
+  }
+  const memberName =
+    application.application_type === "solo" ? "Candidat" : `${member.firstName} ${member.lastName}`.trim() || "Candidat"
+  const authorization = application.parental_authorizations[0] ?? null
   const isLocked = application.status === "validated"
 
   return (
@@ -39,16 +38,13 @@ export default async function ParentalAuthorizationPage({
       <div className="container mx-auto max-w-4xl">
         <div className="mb-8 text-center">
           <h1 className="text-4xl font-bold text-[#246BDC] mb-3">Autorisation parentale</h1>
-          <p className="text-gray-700 text-lg leading-relaxed">
-            {memberName !== "Candidat" ? `Pour ${memberName}` : ""}
-          </p>
-          <p className="text-gray-600 mt-2">Téléchargez, remplissez et uploadez l'autorisation parentale signée</p>
+          <p className="text-gray-700 text-lg leading-relaxed">{memberName !== "Candidat" ? `Pour ${memberName}` : ""}</p>
+          <p className="text-gray-600 mt-2">Téléchargez le modèle, faites-le signer puis envoyez-le ici</p>
         </div>
         <ParentalAuthorizationUpload
           applicationId={application.id}
           memberIndex={memberIndex}
-          memberName={memberName}
-          existingAuthorization={authorization}
+          existingUrl={authorization ? parentalAuthorizationUrl(application.id, memberIndex) : null}
           isLocked={isLocked}
         />
       </div>

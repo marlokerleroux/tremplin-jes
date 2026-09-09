@@ -1,65 +1,73 @@
-import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+import { requireApiAdmin } from "@/lib/auth-helpers"
+import { assignSlotSchema } from "@/lib/validation/admin"
+import { formatZodError } from "@/lib/validation/common"
+import { getSeasonConfig, DEFAULT_VENUE } from "@/lib/season-config"
+import { sendTimeSlotAssignedEmail } from "@/lib/email/notifications"
+import { formatDateFr } from "@/lib/season"
 
 export async function POST(request: Request) {
+  const authResult = await requireApiAdmin()
+  if (!authResult.ok) return authResult.response
+
   try {
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 })
+    const parsed = assignSlotSchema.safeParse(await request.json().catch(() => null))
+    if (!parsed.success) {
+      return NextResponse.json({ error: formatZodError(parsed.error) }, { status: 400 })
     }
+    const { applicationId, timeSlotId } = parsed.data
 
-    if (session.user.role !== "admin") {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 })
-    }
-
-    const { applicationId, timeSlotId } = await request.json()
-
-    if (!applicationId || !timeSlotId) {
-      return NextResponse.json(
-        { error: "ID de candidature et ID de créneau requis" },
-        { status: 400 }
-      )
-    }
-
-    // Get the application to check if it already has a time slot
-    const application = await prisma.application.findUnique({
-      where: { id: applicationId },
-    })
-
-    if (!application) {
-      return NextResponse.json(
-        { error: "Candidature introuvable" },
-        { status: 404 }
-      )
-    }
-
-    // If the application already has a time slot, set the old one back to available
-    if (application.time_slot_id) {
-      await prisma.timeSlot.update({
-        where: { id: application.time_slot_id },
-        data: { is_available: true },
+    const outcome = await prisma.$transaction(async (tx) => {
+      const application = await tx.application.findUnique({
+        where: { id: applicationId },
+        select: {
+          id: true,
+          edition: true,
+          time_slot_id: true,
+          profile: { select: { email: true, first_name: true, last_name: true } },
+        },
       })
+      if (!application) return { error: "Candidature introuvable", status: 404 } as const
+
+      const slot = await tx.timeSlot.findUnique({ where: { id: timeSlotId } })
+      if (!slot) return { error: "Créneau introuvable", status: 404 } as const
+      if (slot.edition !== application.edition) return { error: "Créneau d'une autre édition", status: 400 } as const
+      if (!slot.is_available && slot.id !== application.time_slot_id) {
+        return { error: "Ce créneau est déjà attribué", status: 409 } as const
+      }
+
+      if (application.time_slot_id && application.time_slot_id !== slot.id) {
+        await tx.timeSlot.update({ where: { id: application.time_slot_id }, data: { is_available: true } })
+      }
+      await tx.application.update({ where: { id: application.id }, data: { time_slot_id: slot.id } })
+      await tx.timeSlot.update({ where: { id: slot.id }, data: { is_available: false } })
+
+      return { application, slot } as const
+    })
+
+    if ("error" in outcome) {
+      return NextResponse.json({ error: outcome.error }, { status: outcome.status })
     }
 
-    // Update the application with the new time slot
-    await prisma.application.update({
-      where: { id: applicationId },
-      data: { time_slot_id: timeSlotId },
-    })
+    // Si le planning est déjà public, le candidat est prévenu immédiatement.
+    const config = await getSeasonConfig()
+    let emailSent = false
+    if (config.is_validated) {
+      const result = await sendTimeSlotAssignedEmail(
+        outcome.application.profile.email,
+        outcome.application.profile.first_name,
+        outcome.application.profile.last_name,
+        formatDateFr(outcome.slot.date),
+        outcome.slot.start_time,
+        config.venue || DEFAULT_VENUE,
+      )
+      emailSent = result.success
+    }
 
-    // Set the new time slot to unavailable
-    await prisma.timeSlot.update({
-      where: { id: timeSlotId },
-      data: { is_available: false },
-    })
-
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, emailSent })
   } catch (error) {
     console.error("Error assigning time slot:", error)
-    return NextResponse.json(
-      { error: "Erreur lors de l'attribution du créneau" },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: "Erreur lors de l'attribution du créneau" }, { status: 500 })
   }
 }

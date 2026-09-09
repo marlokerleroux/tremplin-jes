@@ -53,8 +53,9 @@ export default function ForgotPasswordPage() {
               <div className="space-y-4">
                 <div className="p-4 bg-green-50 border border-green-200 rounded-md">
                   <p className="text-sm text-green-800">
-                    Un email de réinitialisation a été envoyé à <strong>{email}</strong>. Vérifiez votre boîte de
-                    réception et cliquez sur le lien pour réinitialiser votre mot de passe.
+                    Si un compte existe pour <strong>{email}</strong>, un email de réinitialisation vient d&#39;être envoyé.
+                    Vérifiez votre boîte de réception (et vos spams) puis cliquez sur le lien pour réinitialiser votre
+                    mot de passe.
                   </p>
                 </div>
                 <div className="text-center">
@@ -70,13 +71,18 @@ export default function ForgotPasswordPage() {
                   <Input
                     id="email"
                     type="email"
+                    autoComplete="email"
                     placeholder="votre@email.com"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
-                {error && <p className="text-sm text-destructive">{error}</p>}
+                {error && (
+                  <p className="text-sm text-destructive" role="alert">
+                    {error}
+                  </p>
+                )}
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? "Envoi en cours..." : "Envoyer le lien de réinitialisation"}
                 </Button>

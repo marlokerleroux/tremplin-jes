@@ -5,10 +5,13 @@ import { authConfigEdge } from "@/lib/auth-config.edge"
 
 const { auth } = NextAuth(authConfigEdge)
 
-const VITRINE_HOSTNAMES = [
-  "tremplin-jeunes-en-scene.fr",
-  "www.tremplin-jeunes-en-scene.fr",
-]
+const VITRINE_HOSTNAMES = ["tremplin-jeunes-en-scene.fr", "www.tremplin-jeunes-en-scene.fr"]
+const VITRINE_PAGES = ["/a-propos"]
+const VITRINE_ALLOWED_PATHS = ["/legal", "/privacy"]
+
+function matchesPath(pathname: string, prefixes: string[]): boolean {
+  return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`))
+}
 
 export async function middleware(request: NextRequest) {
   const hostname = request.headers.get("host")?.split(":")[0] ?? ""
@@ -24,30 +27,28 @@ export async function middleware(request: NextRequest) {
       return NextResponse.rewrite(url)
     }
     // Redirect /vitrine to / to avoid duplicate content
-    if (pathname.startsWith("/vitrine")) {
+    if (matchesPath(pathname, ["/vitrine"])) {
       return NextResponse.redirect(new URL("/", request.url))
     }
     // Rewrite vitrine sub-pages (e.g. /a-propos -> /vitrine/a-propos)
-    const vitrinePages = ["/a-propos"]
-    if (vitrinePages.some((p) => pathname.startsWith(p))) {
+    if (matchesPath(pathname, VITRINE_PAGES)) {
       const url = request.nextUrl.clone()
       url.pathname = `/vitrine${pathname}`
       return NextResponse.rewrite(url)
     }
     // Allow only public pages (legal, privacy)
-    const allowedPaths = ["/legal", "/privacy"]
-    if (allowedPaths.some((p) => pathname.startsWith(p))) {
+    if (matchesPath(pathname, VITRINE_ALLOWED_PATHS)) {
       return NextResponse.next()
     }
     // Block app routes on vitrine domain
     return NextResponse.redirect(new URL("/", request.url))
   }
 
-  // Candidat hostname (or localhost): block /vitrine route, apply NextAuth
-  if (pathname.startsWith("/vitrine")) {
+  // Candidat hostname (or localhost): block /vitrine route, apply NextAuth (callbacks.authorized)
+  if (matchesPath(pathname, ["/vitrine"])) {
     return NextResponse.redirect(new URL("/", request.url))
   }
-  return (auth as any)(request)
+  return (auth as unknown as (req: NextRequest) => Promise<Response>)(request)
 }
 
 export const config = {

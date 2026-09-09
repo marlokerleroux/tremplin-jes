@@ -1,79 +1,64 @@
 import { NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
+import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
+import { signupSchema } from "@/lib/validation/auth"
+import { formatZodError } from "@/lib/validation/common"
+import { getClientIp, hitRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
+import { getSeasonState } from "@/lib/season-config"
+import { sendWelcomeEmail } from "@/lib/email/notifications"
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const {
-      email,
-      password,
-      firstName,
-      lastName,
-      streetAddress,
-      city,
-      postalCode,
-      phone,
-      acceptedPrivacyPolicy,
-    } = body
-
-    if (!email || !password || !firstName || !lastName) {
-      return NextResponse.json(
-        { error: "Champs obligatoires manquants" },
-        { status: 400 },
-      )
+    const ip = getClientIp(request)
+    const { limited } = await hitRateLimit(`signup:${ip}`, RATE_LIMITS.signupPerIp.limit, RATE_LIMITS.signupPerIp.windowMs)
+    if (limited) {
+      return NextResponse.json({ error: "Trop de tentatives, réessayez dans une heure" }, { status: 429 })
     }
 
-    // Validate Brittany postal code
-    const brittanyPostalCodes = ["29", "35", "22", "56"]
-    const postalCodePrefix = postalCode?.substring(0, 2)
-    if (!brittanyPostalCodes.includes(postalCodePrefix)) {
-      return NextResponse.json(
-        {
-          error:
-            "L'inscription au Tremplin Jeunes en Scène est réservée aux résidents bretons (codes postaux : 22, 29, 35, 56)",
+    const parsed = signupSchema.safeParse(await request.json().catch(() => null))
+    if (!parsed.success) {
+      return NextResponse.json({ error: formatZodError(parsed.error) }, { status: 400 })
+    }
+    const data = parsed.data
+
+    const season = await getSeasonState()
+    if (season.registration !== "open") {
+      return NextResponse.json({ error: "Les inscriptions ne sont pas ouvertes" }, { status: 403 })
+    }
+
+    const passwordHash = await bcrypt.hash(data.password, 12)
+
+    let profile
+    try {
+      profile = await prisma.profile.create({
+        data: {
+          email: data.email,
+          password_hash: passwordHash,
+          first_name: data.firstName,
+          last_name: data.lastName,
+          street_address: data.streetAddress,
+          city: data.city,
+          postal_code: data.postalCode,
+          phone: data.phone,
+          role: "user",
+          accepted_privacy_policy: true,
+          privacy_policy_accepted_at: new Date(),
         },
-        { status: 400 },
-      )
+      })
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        return NextResponse.json({ error: "Un compte existe déjà avec cet email" }, { status: 400 })
+      }
+      throw error
     }
 
-    // Check if email already exists
-    const existing = await prisma.profile.findUnique({
-      where: { email },
-    })
-    if (existing) {
-      return NextResponse.json(
-        { error: "Un compte existe déjà avec cet email" },
-        { status: 400 },
-      )
-    }
+    // Email de bienvenue (non bloquant : l'échec est journalisé, le compte est créé).
+    await sendWelcomeEmail(profile.email, profile.first_name, profile.last_name)
 
-    const passwordHash = await bcrypt.hash(password, 12)
-
-    const profile = await prisma.profile.create({
-      data: {
-        email,
-        password_hash: passwordHash,
-        first_name: firstName,
-        last_name: lastName,
-        street_address: streetAddress,
-        city,
-        postal_code: postalCode,
-        phone,
-        role: "user",
-        accepted_privacy_policy: acceptedPrivacyPolicy || false,
-        privacy_policy_accepted_at: acceptedPrivacyPolicy
-          ? new Date()
-          : null,
-      },
-    })
-
-    return NextResponse.json({ success: true, userId: profile.id })
+    return NextResponse.json({ success: true })
   } catch (error) {
     console.error("Signup error:", error)
-    return NextResponse.json(
-      { error: "Erreur lors de la création du compte" },
-      { status: 500 },
-    )
+    return NextResponse.json({ error: "Erreur lors de la création du compte" }, { status: 500 })
   }
 }

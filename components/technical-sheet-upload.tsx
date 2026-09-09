@@ -1,24 +1,22 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Upload, FileText, Download, CheckCircle2, AlertCircle, Lock } from "lucide-react"
+import { MAX_PDF_BYTES, MAX_PDF_LABEL } from "@/lib/pdf"
 
 interface TechnicalSheetUploadProps {
   applicationId: string
-  existingSheet: {
-    pdf_url?: string
-    validated?: boolean
-  } | null
-  applicationStatus: string // Add application status prop
+  /** URL authentifiée du PDF existant, ou null. */
+  existingUrl: string | null
+  applicationStatus: string
 }
 
-export function TechnicalSheetUpload({ applicationId, existingSheet, applicationStatus }: TechnicalSheetUploadProps) {
+export function TechnicalSheetUpload({ applicationId, existingUrl, applicationStatus }: TechnicalSheetUploadProps) {
   const router = useRouter()
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -35,8 +33,8 @@ export function TechnicalSheetUpload({ applicationId, existingSheet, application
         setFile(null)
         return
       }
-      if (selectedFile.size > 10 * 1024 * 1024) {
-        setError("Le fichier ne doit pas dépasser 10 MB")
+      if (selectedFile.size > MAX_PDF_BYTES) {
+        setError(`Le fichier ne doit pas dépasser ${MAX_PDF_LABEL}`)
         setFile(null)
         return
       }
@@ -62,17 +60,16 @@ export function TechnicalSheetUpload({ applicationId, existingSheet, application
       })
 
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || "Erreur lors de l'upload")
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || "Erreur lors de l'envoi du fichier")
       }
 
       setSuccess(true)
       setTimeout(() => {
-        router.push("/dashboard")
-        router.refresh()
-      }, 2000)
+        window.location.assign("/dashboard")
+      }, 1500)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur lors de l'upload")
+      setError(err instanceof Error ? err.message : "Erreur lors de l'envoi du fichier")
     } finally {
       setUploading(false)
     }
@@ -84,7 +81,7 @@ export function TechnicalSheetUpload({ applicationId, existingSheet, application
         <Alert className="border-[#246BDC] bg-blue-50">
           <Lock className="h-4 w-4 text-[#246BDC]" />
           <AlertDescription className="text-[#246BDC] font-medium">
-            Votre candidature a été validée. Il n'est plus possible de modifier votre fiche technique.
+            Votre candidature a été validée. Il n&#39;est plus possible de modifier votre fiche technique.
           </AlertDescription>
         </Alert>
       )}
@@ -112,23 +109,20 @@ export function TechnicalSheetUpload({ applicationId, existingSheet, application
           </a>
           <p className="text-sm text-gray-600">
             Ce document contient plusieurs exemples de fiches techniques (solo et groupes) pour vous aider à préparer la
-            vôtre : nombre d'artistes, instruments, besoins en sonorisation, plan de scène, etc.
+            vôtre : nombre d&#39;artistes, instruments, besoins en sonorisation, plan de scène, etc.
           </p>
         </CardContent>
       </Card>
 
       {/* Current Status */}
-      {!isLocked && existingSheet?.pdf_url && (
-        <Alert className={existingSheet.validated ? "border-green-500 bg-green-50" : "border-yellow-500 bg-yellow-50"}>
+      {!isLocked && existingUrl && (
+        <Alert className="border-yellow-500 bg-yellow-50">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            {existingSheet.validated ? (
-              <span className="text-green-700 font-medium">✓ Votre fiche technique a été validée par l'équipe</span>
-            ) : (
-              <span className="text-yellow-700">
-                Votre fiche technique est en cours de validation. Vous pouvez la remplacer si nécessaire.
-              </span>
-            )}
+            <span className="text-yellow-700">
+              Votre fiche technique a bien été reçue. Vous pouvez la remplacer si nécessaire tant que votre candidature
+              n&#39;est pas validée.
+            </span>
           </AlertDescription>
         </Alert>
       )}
@@ -137,20 +131,18 @@ export function TechnicalSheetUpload({ applicationId, existingSheet, application
       <Card className="border-[#246BDC]/20">
         <CardHeader>
           <CardTitle className="text-[#246BDC]">
-            {existingSheet?.pdf_url ? "Remplacer votre fiche technique" : "Télécharger votre fiche technique"}
+            {existingUrl ? "Remplacer votre fiche technique" : "Envoyer votre fiche technique"}
           </CardTitle>
           <CardDescription>
-            {isLocked
-              ? "Modification verrouillée - candidature validée"
-              : "Format PDF uniquement, taille maximale 10 MB"}
+            {isLocked ? "Modification verrouillée - candidature validée" : `Format PDF uniquement, taille maximale ${MAX_PDF_LABEL}`}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {existingSheet?.pdf_url && (
+          {existingUrl && (
             <div className="p-4 bg-gray-50 rounded-lg">
               <p className="text-sm text-gray-600 mb-2">Fiche technique actuelle :</p>
               <a
-                href={existingSheet.pdf_url}
+                href={existingUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[#246BDC] hover:underline flex items-center gap-2"
@@ -164,7 +156,11 @@ export function TechnicalSheetUpload({ applicationId, existingSheet, application
           {!isLocked && (
             <div className="space-y-4">
               <div className="flex items-center gap-4">
+                <label htmlFor="technical-sheet-file" className="sr-only">
+                  Fichier PDF de la fiche technique
+                </label>
                 <input
+                  id="technical-sheet-file"
                   type="file"
                   accept="application/pdf"
                   onChange={handleFileChange}
@@ -177,23 +173,23 @@ export function TechnicalSheetUpload({ applicationId, existingSheet, application
                   <div className="flex items-center gap-2">
                     <FileText className="h-4 w-4 text-[#246BDC]" />
                     <span className="text-sm font-medium">{file.name}</span>
-                    <span className="text-xs text-gray-500">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                    <span className="text-xs text-gray-500">({(file.size / 1024 / 1024).toFixed(2)} Mo)</span>
                   </div>
                 </div>
               )}
 
               {error && (
-                <Alert variant="destructive">
+                <Alert variant="destructive" role="alert">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
 
               {success && (
-                <Alert className="border-green-500 bg-green-50">
+                <Alert className="border-green-500 bg-green-50" role="status">
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
                   <AlertDescription className="text-green-700">
-                    Fiche technique téléchargée avec succès ! Redirection...
+                    Fiche technique envoyée avec succès ! Redirection...
                   </AlertDescription>
                 </Alert>
               )}
@@ -207,17 +203,17 @@ export function TechnicalSheetUpload({ applicationId, existingSheet, application
                   {uploading ? (
                     <>
                       <Upload className="mr-2 h-4 w-4 animate-spin" />
-                      Téléchargement...
+                      Envoi en cours...
                     </>
                   ) : (
                     <>
                       <Upload className="mr-2 h-4 w-4" />
-                      Télécharger
+                      Envoyer
                     </>
                   )}
                 </Button>
                 <Button variant="outline" onClick={() => router.push("/dashboard")}>
-                  Retour au dashboard
+                  Retour au tableau de bord
                 </Button>
               </div>
             </div>
@@ -225,7 +221,7 @@ export function TechnicalSheetUpload({ applicationId, existingSheet, application
 
           {isLocked && (
             <Button variant="outline" onClick={() => router.push("/dashboard")} className="w-full">
-              Retour au dashboard
+              Retour au tableau de bord
             </Button>
           )}
         </CardContent>

@@ -14,42 +14,28 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Trash2 } from "lucide-react"
-import { useRouter } from "next/navigation"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 
 export function DeleteApplicationButton() {
   const [isDeleting, setIsDeleting] = useState(false)
-  const router = useRouter()
-  const { toast } = useToast()
 
   const handleDelete = async () => {
     setIsDeleting(true)
 
     try {
-      const response = await fetch("/api/application/delete", {
-        method: "DELETE",
-      })
-
-      const data = await response.json()
+      const response = await fetch("/api/application/delete", { method: "DELETE" })
+      const data = await response.json().catch(() => ({}))
 
       if (!response.ok) {
         throw new Error(data.error || "Erreur lors de la suppression")
       }
 
-      toast({
-        title: "Candidature supprimée",
-        description: "Votre candidature a été supprimée avec succès.",
-      })
-
-      // Redirect to home page
-      router.push("/")
-      router.refresh()
+      toast.success("Candidature supprimée", { description: "Votre candidature a été supprimée avec succès." })
+      window.location.assign("/dashboard")
     } catch (error) {
       console.error("[app] Error deleting application:", error)
-      toast({
-        title: "Erreur",
+      toast.error("Erreur", {
         description: error instanceof Error ? error.message : "Impossible de supprimer la candidature",
-        variant: "destructive",
       })
       setIsDeleting(false)
     }
@@ -67,7 +53,8 @@ export function DeleteApplicationButton() {
         <AlertDialogHeader>
           <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
           <AlertDialogDescription>
-            Cette action est irréversible. Votre candidature et votre fiche technique seront définitivement supprimées.
+            Cette action est irréversible. Votre candidature, votre fiche technique et vos autorisations parentales
+            seront définitivement supprimées.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

@@ -1,3 +1,15 @@
+import { getSiteUrl } from "@/lib/site-url"
+
+/** Échappe les valeurs interpolées dans le HTML des emails. */
+export function escapeHtml(value: string | number | null | undefined): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
 export interface EmailTemplate {
   subject: string
   html: string
@@ -120,7 +132,7 @@ function getEmailLayout(content: string): string {
 // 1. Email de bienvenue après création du compte
 export function getWelcomeEmail(data: BaseEmailData): EmailTemplate {
   const content = `
-    <h2>Bienvenue ${data.firstName} !</h2>
+    <h2>Bienvenue ${escapeHtml(data.firstName)} !</h2>
     <p>Votre compte a été créé avec succès. Nous sommes ravis de vous accueillir pour le Tremplin Jeunes en Scène !</p>
     
     <div class="info-box">
@@ -134,7 +146,7 @@ export function getWelcomeEmail(data: BaseEmailData): EmailTemplate {
     
     <p>Vous pouvez dès maintenant accéder à votre espace candidat et commencer à remplir votre dossier.</p>
     
-    <a href="${process.env.NEXT_PUBLIC_SITE_URL || "https://tremplin.pass-musique.fr"}/dashboard" class="button">
+    <a href="${getSiteUrl()}/dashboard" class="button">
       Accéder à mon espace
     </a>
     
@@ -154,7 +166,7 @@ export function getWelcomeEmail(data: BaseEmailData): EmailTemplate {
 export function getApplicationSubmittedEmail(data: BaseEmailData & { applicationType: string }): EmailTemplate {
   const content = `
     <h2>Candidature reçue !</h2>
-    <p>Bonjour ${data.firstName},</p>
+    <p>Bonjour ${escapeHtml(data.firstName)},</p>
     <p>Nous avons bien reçu votre candidature en tant qu'<strong>${data.applicationType === "solo" ? "artiste solo" : "groupe"}</strong>.</p>
     
     <div class="info-box">
@@ -164,7 +176,7 @@ export function getApplicationSubmittedEmail(data: BaseEmailData & { application
     
     <p><strong>N'oubliez pas :</strong> Vous devez encore envoyer votre fiche technique pour finaliser votre candidature.</p>
     
-    <a href="${process.env.NEXT_PUBLIC_SITE_URL || "https://tremplin.pass-musique.fr"}/technical-sheet" class="button">
+    <a href="${getSiteUrl()}/technical-sheet" class="button">
       Envoyer ma fiche technique
     </a>
     
@@ -184,7 +196,7 @@ export function getApplicationSubmittedEmail(data: BaseEmailData & { application
 export function getTechnicalSheetSubmittedEmail(data: BaseEmailData): EmailTemplate {
   const content = `
     <h2>Fiche technique reçue !</h2>
-    <p>Bonjour ${data.firstName},</p>
+    <p>Bonjour ${escapeHtml(data.firstName)},</p>
     <p>Nous avons bien reçu votre fiche technique.</p>
     
     <div class="info-box">
@@ -194,7 +206,7 @@ export function getTechnicalSheetSubmittedEmail(data: BaseEmailData): EmailTempl
     
     <p>Vous pouvez consulter l'état de votre candidature à tout moment depuis votre espace personnel.</p>
     
-    <a href="${process.env.NEXT_PUBLIC_SITE_URL || "https://tremplin.pass-musique.fr"}/dashboard" class="button">
+    <a href="${getSiteUrl()}/dashboard" class="button">
       Voir mon dossier
     </a>
   `
@@ -210,7 +222,7 @@ export function getTechnicalSheetSubmittedEmail(data: BaseEmailData): EmailTempl
 export function getApplicationValidatedEmail(data: BaseEmailData): EmailTemplate {
   const content = `
     <h2>🎉 Candidature validée !</h2>
-    <p>Bonjour ${data.firstName},</p>
+    <p>Bonjour ${escapeHtml(data.firstName)},</p>
     <p>Excellente nouvelle ! Votre candidature a été validée par notre équipe.</p>
     
     <div class="info-box">
@@ -220,7 +232,7 @@ export function getApplicationValidatedEmail(data: BaseEmailData): EmailTemplate
     
     <p>Nous vous informerons dès que votre horaire de passage sera défini.</p>
     
-    <a href="${process.env.NEXT_PUBLIC_SITE_URL || "https://tremplin.pass-musique.fr"}/dashboard" class="button">
+    <a href="${getSiteUrl()}/dashboard" class="button">
       Voir mon dossier
     </a>
     
@@ -242,15 +254,15 @@ export function getTimeSlotAssignedEmail(
 ): EmailTemplate {
   const content = `
     <h2>🎵 Votre créneau d'audition</h2>
-    <p>Bonjour ${data.firstName},</p>
+    <p>Bonjour ${escapeHtml(data.firstName)},</p>
     <p>Votre créneau d'audition a été défini !</p>
     
     <div class="info-box">
       <strong>Informations de votre audition :</strong><br>
       <p style="margin: 10px 0;">
-        📅 <strong>Date :</strong> ${data.date}<br>
-        🕐 <strong>Heure :</strong> ${data.time}<br>
-        📍 <strong>Lieu :</strong> ${data.venue}
+        📅 <strong>Date :</strong> ${escapeHtml(data.date)}<br>
+        🕐 <strong>Heure :</strong> ${escapeHtml(data.time)}<br>
+        📍 <strong>Lieu :</strong> ${escapeHtml(data.venue)}
       </p>
     </div>
     
@@ -260,7 +272,7 @@ export function getTimeSlotAssignedEmail(
       <li>Préparez votre matériel selon votre fiche technique</li>
     </ul>
     
-    <a href="${process.env.NEXT_PUBLIC_SITE_URL || "https://tremplin.pass-musique.fr"}/dashboard" class="button">
+    <a href="${getSiteUrl()}/dashboard" class="button">
       Voir les détails
     </a>
     
@@ -272,7 +284,7 @@ export function getTimeSlotAssignedEmail(
   return {
     subject: "🎵 Votre créneau d'audition - Tremplin Jeunes en Scène",
     html: getEmailLayout(content),
-    text: `Bonjour ${data.firstName},\n\nVotre créneau d'audition a été défini :\nDate : ${data.date}\nHeure : ${data.time}\nLieu : ${data.venue}\n\nPrésentez-vous 15 minutes avant votre créneau.\n\nTremplin Jeunes en Scène - Organisé par Pass'Musique`,
+    text: `Bonjour ${data.firstName},\n\nVotre créneau d'audition a été défini :\nDate : ${data.date}\nHeure : ${data.time}\nLieu : ${data.venue}\n\nPrésentez-vous 30 minutes avant votre créneau.\n\nTremplin Jeunes en Scène - Organisé par Pass'Musique`,
   }
 }
 
@@ -282,7 +294,7 @@ export function getPasswordResetEmail(
 ): EmailTemplate {
   const content = `
     <h2>Réinitialisation de votre mot de passe</h2>
-    <p>Bonjour ${data.firstName},</p>
+    <p>Bonjour ${escapeHtml(data.firstName)},</p>
     <p>Vous avez demandé la réinitialisation de votre mot de passe.</p>
 
     <div class="info-box">
@@ -290,13 +302,13 @@ export function getPasswordResetEmail(
       Si vous n'avez pas demandé cette réinitialisation, ignorez simplement cet email.
     </div>
 
-    <a href="${data.resetUrl}" class="button">
+    <a href="${escapeHtml(data.resetUrl)}" class="button">
       Réinitialiser mon mot de passe
     </a>
 
     <p style="margin-top: 30px; color: #666; font-size: 14px;">
       Si le bouton ne fonctionne pas, copiez-collez ce lien dans votre navigateur :<br>
-      <a href="${data.resetUrl}" style="color: #246BDC;">${data.resetUrl}</a>
+      <a href="${escapeHtml(data.resetUrl)}" style="color: #246BDC;">${escapeHtml(data.resetUrl)}</a>
     </p>
   `
 
