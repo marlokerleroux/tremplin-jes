@@ -16,6 +16,7 @@ export async function DELETE() {
       select: {
         id: true,
         status: true,
+        time_slot_id: true,
         technical_sheet: { select: { pdf_url: true } },
         parental_authorizations: { select: { pdf_url: true } },
       },
@@ -29,8 +30,14 @@ export async function DELETE() {
       return NextResponse.json({ error: "Impossible de supprimer une candidature validée" }, { status: 403 })
     }
 
-    // La suppression en cascade gère fiche technique, autorisations parentales et suivi d'audition.
-    await prisma.application.delete({ where: { id: application.id } })
+    // La suppression en cascade gère fiche technique, autorisations parentales et suivi d'audition ;
+    // un créneau éventuellement attribué est libéré.
+    await prisma.$transaction([
+      prisma.application.delete({ where: { id: application.id } }),
+      ...(application.time_slot_id
+        ? [prisma.timeSlot.update({ where: { id: application.time_slot_id }, data: { is_available: true } })]
+        : []),
+    ])
 
     await deleteBlobs([application.technical_sheet?.pdf_url, ...application.parental_authorizations.map((a) => a.pdf_url)])
 

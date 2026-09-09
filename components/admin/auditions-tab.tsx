@@ -52,7 +52,8 @@ export function AuditionsTab({
 
   const slotById = new Map(timeSlots.map((s) => [s.id, s]))
   const scheduled = applications.filter((app) => app.time_slot_id && app.status !== "rejected")
-  const dates = auditionDates.length > 0 ? auditionDates : Array.from(new Set(timeSlots.map((s) => s.date))).sort()
+  // Union des dates configurées et des dates portant des créneaux (un créneau attribué reste visible même si sa date a été retirée).
+  const dates = Array.from(new Set([...auditionDates, ...timeSlots.map((s) => s.date)])).sort()
 
   const counts = {
     expected: scheduled.length,

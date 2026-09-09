@@ -167,7 +167,7 @@ export function getApplicationSubmittedEmail(data: BaseEmailData & { application
   const content = `
     <h2>Candidature reçue !</h2>
     <p>Bonjour ${escapeHtml(data.firstName)},</p>
-    <p>Nous avons bien reçu votre candidature en tant qu'<strong>${data.applicationType === "solo" ? "artiste solo" : "groupe"}</strong>.</p>
+    <p>Nous avons bien reçu votre candidature ${data.applicationType === "solo" ? "en tant qu'<strong>artiste solo</strong>" : "en tant que <strong>groupe</strong>"}.</p>
     
     <div class="info-box">
       <strong>Votre dossier est en cours de traitement</strong><br>
@@ -200,8 +200,10 @@ export function getTechnicalSheetSubmittedEmail(data: BaseEmailData): EmailTempl
     <p>Nous avons bien reçu votre fiche technique.</p>
     
     <div class="info-box">
-      <strong>Votre dossier est maintenant complet !</strong><br>
-      Notre équipe va examiner votre fiche technique. Vous recevrez une notification dès qu'elle sera validée.
+      <strong>Merci !</strong><br>
+      Notre équipe va examiner votre fiche technique. Vérifiez sur votre espace candidat que tous les documents
+      demandés (par exemple une autorisation parentale pour les mineurs) sont bien fournis : vous recevrez une
+      notification dès que votre candidature sera validée.
     </div>
     
     <p>Vous pouvez consulter l'état de votre candidature à tout moment depuis votre espace personnel.</p>
@@ -214,7 +216,7 @@ export function getTechnicalSheetSubmittedEmail(data: BaseEmailData): EmailTempl
   return {
     subject: "Fiche technique reçue - Tremplin Jeunes en Scène",
     html: getEmailLayout(content),
-    text: `Bonjour ${data.firstName},\n\nNous avons bien reçu votre fiche technique. Votre dossier est maintenant complet !\n\nTremplin Jeunes en Scène - Organisé par Pass'Musique`,
+    text: `Bonjour ${data.firstName},\n\nNous avons bien reçu votre fiche technique. Vérifiez sur votre espace candidat que tous les documents demandés sont bien fournis.\n\nTremplin Jeunes en Scène - Organisé par Pass'Musique`,
   }
 }
 

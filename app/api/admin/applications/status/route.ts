@@ -18,16 +18,21 @@ export async function PUT(request: Request) {
 
     const existing = await prisma.application.findUnique({
       where: { id: applicationId },
-      select: { status: true, profile: { select: { email: true, first_name: true, last_name: true } } },
+      select: { status: true, time_slot_id: true, profile: { select: { email: true, first_name: true, last_name: true } } },
     })
     if (!existing) {
       return NextResponse.json({ error: "Candidature introuvable" }, { status: 404 })
     }
 
-    const application = await prisma.application.update({
-      where: { id: applicationId },
-      data: { status },
-    })
+    // Une candidature refusée libère son créneau.
+    const releaseSlot = status === "rejected" && existing.time_slot_id
+    const [application] = await prisma.$transaction([
+      prisma.application.update({
+        where: { id: applicationId },
+        data: { status, ...(releaseSlot ? { time_slot_id: null } : {}) },
+      }),
+      ...(releaseSlot ? [prisma.timeSlot.update({ where: { id: existing.time_slot_id! }, data: { is_available: true } })] : []),
+    ])
 
     let emailSent = false
     if (status === "validated" && existing.status !== "validated") {

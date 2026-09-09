@@ -78,7 +78,9 @@ export default function ResetPasswordPage() {
             {!token ? (
               <div className="space-y-4">
                 <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-                  <p className="text-sm text-red-800">{error}</p>
+                  <p className="text-sm text-red-800">
+                    Lien de réinitialisation invalide ou expiré. Veuillez demander un nouveau lien.
+                  </p>
                 </div>
                 <div className="text-center">
                   <Link

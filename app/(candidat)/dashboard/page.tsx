@@ -10,7 +10,7 @@ import { handleSignOut } from "@/lib/auth"
 import Image from "next/image"
 import { DeleteApplicationButton } from "@/components/delete-application-button"
 import { getCurrentApplication, getSeasonState } from "@/lib/season-config"
-import { computeAgeAt, formatDateFr, formatDateShortFr, isMinorAt } from "@/lib/season"
+import { computeAgeAt, formatDateFr, formatDateShortFr, formatDateTimeFr, isMinorAt } from "@/lib/season"
 import { normalizeGroupMembers } from "@/lib/admin-data"
 import { parentalAuthorizationUrl, technicalSheetUrl } from "@/lib/documents"
 
@@ -142,7 +142,7 @@ export default async function DashboardPage() {
         {/* Application Exists */}
         {application && (
           <div className="space-y-6">
-            {application.time_slot && season.config.is_validated && (
+            {application.time_slot && season.config.is_validated && application.status !== "rejected" && (
               <Card className="border-2 border-green-500 bg-gradient-to-br from-green-50 to-emerald-50">
                 <CardHeader>
                   <div className="flex items-center gap-2">
@@ -179,8 +179,8 @@ export default async function DashboardPage() {
                   </div>
                   <div className="bg-white/60 border border-green-200 rounded-lg p-4">
                     <p className="text-sm text-green-900 leading-relaxed">
-                      📧 Un email de confirmation avec tous les détails vous a été envoyé. Merci de vous présenter au
-                      moins 30 minutes avant votre créneau.
+                      Les informations ci-dessus font foi ; une convocation par email vous est envoyée en complément.
+                      Merci de vous présenter au moins 30 minutes avant votre créneau.
                     </p>
                   </div>
                 </CardContent>
@@ -198,7 +198,7 @@ export default async function DashboardPage() {
                   </div>
                 </div>
                 <CardDescription>
-                  Candidature soumise le {formatDate(application.created_at.toISOString().slice(0, 10))}
+                  Candidature soumise le {formatDateTimeFr(application.created_at)}
                 </CardDescription>
               </CardHeader>
               <CardContent>

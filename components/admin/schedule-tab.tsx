@@ -34,7 +34,7 @@ export function ScheduleTab({
   timeSlots: TimeSlotDTO[]
   season: SeasonConfigDTO
   onRefresh: () => Promise<void>
-  onSeasonChange: (season: SeasonConfigDTO) => void
+  onSeasonChange: (season: SeasonConfigDTO) => void | Promise<void>
 }) {
   const [busySlotId, setBusySlotId] = useState<string | null>(null)
   const [isValidating, setIsValidating] = useState(false)
@@ -216,7 +216,7 @@ export function ScheduleTab({
                               {busy ? "..." : "Retirer"}
                             </Button>
                           ) : (
-                            <Select onValueChange={(appId) => assign(appId, slot.id)} disabled={busy || assignable.length === 0}>
+                            <Select value="" onValueChange={(appId) => assign(appId, slot.id)} disabled={busy || assignable.length === 0}>
                               <SelectTrigger className="w-full sm:w-64" aria-label={`Attribuer le créneau de ${formatTime(slot.start_time)}`}>
                                 <SelectValue placeholder={busy ? "Attribution..." : "Attribuer à..."} />
                               </SelectTrigger>

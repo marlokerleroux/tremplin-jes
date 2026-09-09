@@ -4,12 +4,10 @@ import { isHHMM, isIsoDate } from "@/lib/season"
 // Messages par défaut en français (les messages explicites des schémas restent prioritaires).
 z.config(z.locales.fr())
 
-/** Retourne un message d'erreur lisible (première erreur) pour une réponse API. */
+/** Retourne le premier message d'erreur, destiné à l'affichage utilisateur (sans nom de champ technique). */
 export function formatZodError(error: z.ZodError): string {
   const issue = error.issues[0]
-  if (!issue) return "Données invalides"
-  const path = issue.path.filter((p) => typeof p === "string").join(".")
-  return path ? `${issue.message} (${path})` : issue.message
+  return issue?.message || "Données invalides"
 }
 
 export const isoDateSchema = z

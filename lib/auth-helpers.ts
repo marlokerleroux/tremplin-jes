@@ -1,17 +1,30 @@
 import type { Session } from "next-auth"
 import { auth } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import { NextResponse } from "next/server"
 
-export async function requireAuth() {
+/**
+ * Session vérifiée contre la base : le rôle du JWT est remplacé par le rôle courant du profil,
+ * et un compte supprimé n'est plus reconnu même si son jeton est encore valide.
+ */
+async function getVerifiedSession(): Promise<Session | null> {
   const session = await auth()
-  if (!session?.user) {
+  if (!session?.user?.id) return null
+  const profile = await prisma.profile.findUnique({ where: { id: session.user.id }, select: { role: true } })
+  if (!profile) return null
+  return { ...session, user: { ...session.user, role: profile.role } }
+}
+
+export async function requireAuth(): Promise<Session> {
+  const session = await getVerifiedSession()
+  if (!session) {
     redirect("/auth/login")
   }
   return session
 }
 
-export async function requireAdmin() {
+export async function requireAdmin(): Promise<Session> {
   const session = await requireAuth()
   if (session.user.role !== "admin") {
     redirect("/dashboard")
@@ -20,17 +33,15 @@ export async function requireAdmin() {
 }
 
 export async function getOptionalAuth() {
-  return await auth()
+  return getVerifiedSession()
 }
 
-type ApiAuthResult =
-  | { ok: true; session: Session }
-  | { ok: false; response: NextResponse }
+type ApiAuthResult = { ok: true; session: Session } | { ok: false; response: NextResponse }
 
 /** Pour les routes API : session obligatoire, sinon 401. */
 export async function requireApiUser(): Promise<ApiAuthResult> {
-  const session = await auth()
-  if (!session?.user) {
+  const session = await getVerifiedSession()
+  if (!session) {
     return { ok: false, response: NextResponse.json({ error: "Non authentifié" }, { status: 401 }) }
   }
   return { ok: true, session }

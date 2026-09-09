@@ -1,17 +1,65 @@
 -- Saison configurable, archivage par édition et durcissement (septembre 2026)
 
--- 1. Nettoyage préalable : une seule fiche technique par candidature (on garde la plus récente)
-DELETE FROM "technical_sheets" t
-USING "technical_sheets" newer
-WHERE t."application_id" = newer."application_id"
-  AND (t."updated_at" < newer."updated_at" OR (t."updated_at" = newer."updated_at" AND t."id" < newer."id"));
+-- 1. Nettoyage préalable : une seule fiche technique par candidature
+--    (on garde en priorité une ligne avec PDF, puis la plus récente ; les lignes supprimées sont archivées)
+CREATE TABLE "technical_sheets_purged" (
+    "id" UUID NOT NULL,
+    "application_id" UUID NOT NULL,
+    "pdf_url" TEXT,
+    "sound_engineer" TEXT,
+    "instruments" JSONB,
+    "microphones" JSONB,
+    "monitoring" TEXT,
+    "notes" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "technical_sheets_purged_pkey" PRIMARY KEY ("id")
+);
+INSERT INTO "technical_sheets_purged" ("id", "application_id", "pdf_url", "sound_engineer", "instruments", "microphones", "monitoring", "notes", "created_at", "updated_at")
+SELECT t."id", t."application_id", t."pdf_url", t."sound_engineer", t."instruments", t."microphones", t."monitoring", t."notes", t."created_at", t."updated_at"
+FROM "technical_sheets" t
+WHERE t."id" NOT IN (
+  SELECT DISTINCT ON ("application_id") "id" FROM "technical_sheets"
+  ORDER BY "application_id", ("pdf_url" IS NOT NULL) DESC, "updated_at" DESC, "id" DESC
+);
+DELETE FROM "technical_sheets" WHERE "id" IN (SELECT "id" FROM "technical_sheets_purged");
+
+-- 1 bis. Emails en minuscules (les recherches sont désormais normalisées) ; les doublons insensibles à la casse sont laissés tels quels
+UPDATE "profiles" p
+SET "email" = lower(p."email")
+WHERE p."email" <> lower(p."email")
+  AND NOT EXISTS (SELECT 1 FROM "profiles" q WHERE q."id" <> p."id" AND q."email" = lower(p."email"));
 
 -- 2. Nettoyage préalable : jetons de réinitialisation orphelins (profil supprimé)
 DELETE FROM "password_reset_tokens" t
 WHERE NOT EXISTS (SELECT 1 FROM "profiles" p WHERE p."id" = t."profile_id");
 
--- DropIndex
+-- DropIndex : unicité historique sur user_id (créée par Prisma ou par l'ancien script SQL 020)
+ALTER TABLE "applications" DROP CONSTRAINT IF EXISTS "applications_user_id_unique";
 DROP INDEX IF EXISTS "applications_user_id_key";
+DO $$
+DECLARE r RECORD;
+BEGIN
+  FOR r IN
+    SELECT c.conname
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    WHERE t.relname = 'applications' AND c.contype = 'u'
+      AND (SELECT array_agg(a.attname::text ORDER BY a.attnum) FROM pg_attribute a WHERE a.attrelid = t.oid AND a.attnum = ANY (c.conkey)) = ARRAY['user_id']
+  LOOP
+    EXECUTE format('ALTER TABLE "applications" DROP CONSTRAINT %I', r.conname);
+  END LOOP;
+  FOR r IN
+    SELECT i.indexrelid::regclass::text AS idxname
+    FROM pg_index i
+    JOIN pg_class t ON t.oid = i.indrelid
+    WHERE t.relname = 'applications' AND i.indisunique AND NOT i.indisprimary
+      AND (SELECT array_agg(a.attname::text ORDER BY a.attnum) FROM pg_attribute a WHERE a.attrelid = t.oid AND a.attnum = ANY (i.indkey)) = ARRAY['user_id']
+  LOOP
+    EXECUTE format('DROP INDEX IF EXISTS %s', r.idxname);
+  END LOOP;
+END $$;
 
 -- AlterTable
 ALTER TABLE "applications" ADD COLUMN     "edition" INTEGER NOT NULL DEFAULT 2026;

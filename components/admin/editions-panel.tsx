@@ -96,13 +96,18 @@ export function EditionsPanel({ currentEdition }: { currentEdition: number }) {
     if (!purgeTarget) return
     setBusy(`purge-${purgeTarget.edition}`)
     try {
-      const result = await apiJson<{ deleted: { applications: number; timeSlots: number; files: number; accounts: number } }>(
+      const result = await apiJson<{ deleted: { applications: number; timeSlots: number; files: number; filesFailed: number; accounts: number } }>(
         `/api/admin/editions/${purgeTarget.edition}${purgeAccounts ? "?accounts=1" : ""}`,
         { method: "DELETE", body: JSON.stringify({ confirmation }) },
       )
       toast.success(`Édition ${purgeTarget.edition} purgée`, {
         description: `${result.deleted.applications} candidature(s), ${result.deleted.files} fichier(s), ${result.deleted.timeSlots} créneau(x)${purgeAccounts ? `, ${result.deleted.accounts} compte(s)` : ""} supprimé(s).`,
       })
+      if (result.deleted.filesFailed > 0) {
+        toast.warning(`${result.deleted.filesFailed} fichier(s) n'ont pas pu être supprimés du stockage`, {
+          description: "Vérifiez le jeton BLOB_READ_WRITE_TOKEN_LEGACY pour les fichiers de l'ancien store.",
+        })
+      }
       setPurgeTarget(null)
       setConfirmation("")
       setPurgeAccounts(false)
@@ -172,8 +177,7 @@ export function EditionsPanel({ currentEdition }: { currentEdition: number }) {
             <div className="flex items-start space-x-2">
               <Checkbox id="purge-accounts" checked={purgeAccounts} onCheckedChange={(c) => setPurgeAccounts(c === true)} />
               <Label htmlFor="purge-accounts" className="font-normal leading-relaxed">
-                Supprimer aussi les comptes candidats qui n&#39;auront plus aucune candidature
-                {data ? ` (${data.orphanAccounts} compte(s) déjà sans candidature)` : ""}.
+                Supprimer aussi les comptes des candidats de cette édition qui n&#39;auront plus aucune candidature.
               </Label>
             </div>
             <div className="space-y-2">

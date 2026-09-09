@@ -61,12 +61,16 @@ export function AdminDashboard({ initialApplications, initialTimeSlots, initialS
   }, [refreshApplications, refreshTimeSlots])
 
   const handleSeasonChange = useCallback(
-    (next: SeasonConfigDTO) => {
+    async (next: SeasonConfigDTO) => {
       setSeason(next)
       if (next.edition !== season.edition) {
-        // Nouvelle saison : la vue courante repart de zéro.
-        apiJson<AdminApplicationDTO[]>(`/api/admin/applications?edition=${next.edition}`).then(setApplications).catch(() => setApplications([]))
-        apiJson<TimeSlotDTO[]>(`/api/admin/time-slots?edition=${next.edition}`).then(setTimeSlots).catch(() => setTimeSlots([]))
+        // Nouvelle saison : la vue courante repart de zéro (chargement explicite de la nouvelle édition).
+        const [apps, slots] = await Promise.all([
+          apiJson<AdminApplicationDTO[]>(`/api/admin/applications?edition=${next.edition}`).catch(() => []),
+          apiJson<TimeSlotDTO[]>(`/api/admin/time-slots?edition=${next.edition}`).catch(() => []),
+        ])
+        setApplications(apps)
+        setTimeSlots(slots)
       }
     },
     [season.edition],

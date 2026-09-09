@@ -98,6 +98,22 @@ model TechnicalSheet {
   @@map("technical_sheets")
 }
 
+/// Archive des fiches techniques en doublon supprimées par la migration de septembre 2026 (pour nettoyage des fichiers).
+model TechnicalSheetPurged {
+  id             String   @id @db.Uuid
+  application_id String   @db.Uuid
+  pdf_url        String?
+  sound_engineer String?
+  instruments    Json?
+  microphones    Json?
+  monitoring     String?
+  notes          String?
+  created_at     DateTime
+  updated_at     DateTime
+
+  @@map("technical_sheets_purged")
+}
+
 model ParentalAuthorization {
   id             String   @id @default(uuid()) @db.Uuid
   application_id String   @db.Uuid

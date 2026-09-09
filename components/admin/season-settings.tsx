@@ -46,7 +46,7 @@ export function SeasonSettings({
 }: {
   season: SeasonConfigDTO
   timeSlots: TimeSlotDTO[]
-  onSeasonChange: (season: SeasonConfigDTO) => void
+  onSeasonChange: (season: SeasonConfigDTO) => void | Promise<void>
   onSlotsChange: () => Promise<void>
 }) {
   const [opensAt, setOpensAt] = useState(toLocalInput(season.registration_opens_at))
@@ -66,6 +66,8 @@ export function SeasonSettings({
   const [newEdition, setNewEdition] = useState(String(season.edition + 1))
   const [isStartingSeason, setIsStartingSeason] = useState(false)
 
+  // Réinitialisation du formulaire uniquement quand l'édition change (pas à chaque rafraîchissement),
+  // pour ne pas effacer des modifications non enregistrées.
   useEffect(() => {
     setOpensAt(toLocalInput(season.registration_opens_at))
     setClosesAt(toLocalInput(season.registration_closes_at))
@@ -73,7 +75,8 @@ export function SeasonSettings({
     setAgeReferenceDate(season.age_reference_date ?? "")
     setVenue(season.venue ?? "")
     setNewEdition(String(season.edition + 1))
-  }, [season])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [season.id, season.edition])
 
   const registrationStatus = getRegistrationStatus(season)
   const effectiveAgeReference = getAgeReferenceDate(season)
@@ -123,6 +126,8 @@ export function SeasonSettings({
       await onSlotsChange()
       const refreshed = await apiJson<SeasonConfigDTO>("/api/admin/season")
       onSeasonChange(refreshed)
+      // La date générée rejoint la liste locale sans écraser les autres modifications en cours.
+      setAuditionDates((dates) => (dates.includes(slotDate) ? dates : [...dates, slotDate].sort()))
       toast.success(`${result.created} créneau(x) créé(s)`, {
         description: result.skipped > 0 ? `${result.skipped} créneau(x) existaient déjà.` : undefined,
       })
@@ -152,8 +157,7 @@ export function SeasonSettings({
         method: "POST",
         body: JSON.stringify({ edition: Number(newEdition) }),
       })
-      onSeasonChange(result.config)
-      await onSlotsChange()
+      await onSeasonChange(result.config)
       toast.success(`Saison ${result.config.edition} ouverte`, {
         description: "Configurez les dates d'inscription et d'audition, puis générez les créneaux.",
       })

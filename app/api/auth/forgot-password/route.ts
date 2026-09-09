@@ -25,7 +25,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true })
     }
 
-    const profile = await prisma.profile.findUnique({ where: { email } })
+    const profile = await prisma.profile.findFirst({ where: { email: { equals: email, mode: "insensitive" } } })
     if (!profile) {
       return NextResponse.json({ success: true })
     }

@@ -96,21 +96,31 @@ function legacyOptionsFor(url: string): { token?: string } {
   return isLegacyPublicUrl(url) ? (legacyTokenOptions() ?? {}) : {}
 }
 
-/** Supprime un ou plusieurs blobs sans faire échouer l'appelant. */
-export async function deleteBlobs(urls: Array<string | null | undefined>): Promise<void> {
-  const valid = urls.filter((u): u is string => typeof u === "string" && u.length > 0)
-  if (valid.length === 0) return
-  const legacy = valid.filter(isLegacyPublicUrl)
-  const current = valid.filter((u) => !isLegacyPublicUrl(u))
-  const tasks: Promise<void>[] = []
-  if (current.length > 0) tasks.push(del(current))
-  if (legacy.length > 0) tasks.push(del(legacy, legacyTokenOptions()))
-  const results = await Promise.allSettled(tasks)
-  for (const result of results) {
-    if (result.status === "rejected") console.error("[blob] delete failed:", result.reason)
-  }
+export interface DeleteBlobsResult {
+  deleted: number
+  failed: string[]
 }
 
-export async function deleteBlob(url: string | null | undefined): Promise<void> {
+/** Supprime un ou plusieurs blobs sans faire échouer l'appelant ; retourne les URL non supprimées. */
+export async function deleteBlobs(urls: Array<string | null | undefined>): Promise<DeleteBlobsResult> {
+  const valid = urls.filter((u): u is string => typeof u === "string" && u.length > 0)
+  if (valid.length === 0) return { deleted: 0, failed: [] }
+  const legacy = valid.filter(isLegacyPublicUrl)
+  const current = valid.filter((u) => !isLegacyPublicUrl(u))
+  const groups: Array<{ urls: string[]; options?: { token: string } }> = []
+  if (current.length > 0) groups.push({ urls: current })
+  if (legacy.length > 0) groups.push({ urls: legacy, options: legacyTokenOptions() })
+  const failed: string[] = []
+  const results = await Promise.allSettled(groups.map((g) => del(g.urls, g.options)))
+  results.forEach((result, index) => {
+    if (result.status === "rejected") {
+      console.error("[blob] delete failed:", result.reason)
+      failed.push(...groups[index].urls)
+    }
+  })
+  return { deleted: valid.length - failed.length, failed }
+}
+
+export async function deleteBlob(url: string | null | undefined): Promise<DeleteBlobsResult> {
   return deleteBlobs([url])
 }

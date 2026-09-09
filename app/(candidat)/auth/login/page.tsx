@@ -29,7 +29,11 @@ export default function LoginPage() {
       })
 
       if (result?.error) {
-        setError("Email ou mot de passe incorrect")
+        setError(
+          result.code === "rate_limited"
+            ? "Trop de tentatives de connexion. Réessayez dans 15 minutes."
+            : "Email ou mot de passe incorrect",
+        )
       } else {
         const res = await fetch("/api/auth/session")
         const session = await res.json()
