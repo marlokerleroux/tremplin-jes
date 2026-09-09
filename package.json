@@ -11,7 +11,8 @@
     "test": "vitest run",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "build:vercel": "prisma migrate deploy && prisma generate && next build"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

@@ -40,19 +40,19 @@ vercel --prod
 
 ### Migrations de base de données
 
-Les migrations ne sont pas appliquées automatiquement au déploiement. Avant de déployer une version qui modifie
-`prisma/schema.prisma`, appliquez-les sur la base de production avec la connexion directe :
+Le build Vercel (`vercel.json` → `pnpm run build:vercel`) exécute `prisma migrate deploy` avant `next build` : les
+migrations en attente sont appliquées automatiquement à chaque déploiement, via la connexion directe
+`POSTGRES_URL_NON_POOLING`. Un échec de migration fait échouer le build, ce qui évite de déployer un code incompatible
+avec la base.
 
-```bash
-DATABASE_URL="<POSTGRES_URL_NON_POOLING>" POSTGRES_URL_NON_POOLING="<POSTGRES_URL_NON_POOLING>" pnpm db:migrate
-```
-
-Si la base a été créée avant l'adoption de Prisma Migrate (table `_prisma_migrations` absente), marquez d'abord la
-migration initiale comme appliquée :
+Si la base a été créée avant l'adoption de Prisma Migrate (table `_prisma_migrations` absente), marquez une fois la
+migration initiale comme appliquée avant le premier déploiement :
 
 ```bash
 npx prisma migrate resolve --applied 20260211203303_init
 ```
+
+En local, `pnpm db:migrate` applique les migrations sur la base indiquée par `.env.local`.
 
 ### Stockage privé des documents (Vercel Blob)
 
