@@ -53,7 +53,7 @@ interface DraftState {
   instagram: string
   hasOriginalComposition: boolean
   isSacemRegistered: boolean
-  allowsBroadcast: boolean
+  refusesBroadcast: boolean
   hasStageExperience: boolean
   stageExperienceDetails: string
   preferredAuditionDate: string
@@ -104,7 +104,7 @@ export function RegistrationForm({ edition, ageReferenceDate, auditionDates, ven
   const [instagram, setInstagram] = useState("")
   const [hasOriginalComposition, setHasOriginalComposition] = useState(false)
   const [isSacemRegistered, setIsSacemRegistered] = useState(false)
-  const [allowsBroadcast, setAllowsBroadcast] = useState(false)
+  const [refusesBroadcast, setRefusesBroadcast] = useState(false)
   const [hasStageExperience, setHasStageExperience] = useState(false)
   const [stageExperienceDetails, setStageExperienceDetails] = useState("")
   const [preferredAuditionDate, setPreferredAuditionDate] = useState("")
@@ -125,7 +125,7 @@ export function RegistrationForm({ edition, ageReferenceDate, auditionDates, ven
       setInstagram(draft.instagram ?? "")
       setHasOriginalComposition(Boolean(draft.hasOriginalComposition))
       setIsSacemRegistered(Boolean(draft.isSacemRegistered))
-      setAllowsBroadcast(Boolean(draft.allowsBroadcast))
+      setRefusesBroadcast(Boolean(draft.refusesBroadcast))
       setHasStageExperience(Boolean(draft.hasStageExperience))
       setStageExperienceDetails(draft.stageExperienceDetails ?? "")
       setPreferredAuditionDate(auditionDates.includes(draft.preferredAuditionDate) ? draft.preferredAuditionDate : "")
@@ -150,7 +150,7 @@ export function RegistrationForm({ edition, ageReferenceDate, auditionDates, ven
         instagram,
         hasOriginalComposition,
         isSacemRegistered,
-        allowsBroadcast,
+        refusesBroadcast,
         hasStageExperience,
         stageExperienceDetails,
         preferredAuditionDate,
@@ -168,7 +168,7 @@ export function RegistrationForm({ edition, ageReferenceDate, auditionDates, ven
     instagram,
     hasOriginalComposition,
     isSacemRegistered,
-    allowsBroadcast,
+    refusesBroadcast,
     hasStageExperience,
     stageExperienceDetails,
     preferredAuditionDate,
@@ -189,7 +189,7 @@ export function RegistrationForm({ edition, ageReferenceDate, auditionDates, ven
     setInstagram("")
     setHasOriginalComposition(false)
     setIsSacemRegistered(false)
-    setAllowsBroadcast(false)
+    setRefusesBroadcast(false)
     setHasStageExperience(false)
     setStageExperienceDetails("")
     setPreferredAuditionDate("")
@@ -228,7 +228,7 @@ export function RegistrationForm({ edition, ageReferenceDate, auditionDates, ven
       instagram: instagram || null,
       has_original_composition: hasOriginalComposition,
       is_sacem_registered: hasOriginalComposition ? isSacemRegistered : null,
-      allows_broadcast: allowsBroadcast,
+      allows_broadcast: !refusesBroadcast,
       has_stage_experience: hasStageExperience,
       stage_experience_details: hasStageExperience ? stageExperienceDetails : null,
       preferred_audition_date: preferredAuditionDate || null,
@@ -488,18 +488,6 @@ export function RegistrationForm({ edition, ageReferenceDate, auditionDates, ven
               </div>
             )}
           </div>
-
-          {/* Broadcast Authorization */}
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="allowsBroadcast"
-              checked={allowsBroadcast}
-              onCheckedChange={(checked) => setAllowsBroadcast(checked === true)}
-            />
-            <Label htmlFor="allowsBroadcast" className="font-normal cursor-pointer">
-              J&#39;autorise la diffusion de ma prestation sur toutes les plateformes
-            </Label>
-          </div>
         </CardContent>
       </Card>
 
@@ -593,6 +581,18 @@ export function RegistrationForm({ edition, ageReferenceDate, auditionDates, ven
             />
             <Label htmlFor="acceptedRules" className="font-normal cursor-pointer leading-relaxed">
               J&#39;ai lu et j&#39;accepte le règlement du Tremplin Jeunes en Scène organisé par Pass&#39;Musique *
+            </Label>
+          </div>
+          {/* Diffusion : accordée par défaut, la case sert à la refuser */}
+          <div className="flex items-start space-x-3 p-4 rounded-lg border">
+            <Checkbox
+              id="refusesBroadcast"
+              checked={refusesBroadcast}
+              onCheckedChange={(checked) => setRefusesBroadcast(checked === true)}
+              className="mt-0.5"
+            />
+            <Label htmlFor="refusesBroadcast" className="font-normal cursor-pointer leading-relaxed">
+              Je refuse la diffusion de ma prestation sur les plateformes
             </Label>
           </div>
         </CardContent>

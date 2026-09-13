@@ -36,7 +36,8 @@ export const applicationCreateSchema = z
       .min(1, "Renseignez au moins une date de naissance")
       .max(MAX_GROUP_MEMBERS, `${MAX_GROUP_MEMBERS} membres maximum`),
     how_did_you_hear: optionalText(200),
-    allows_broadcast: z.boolean().default(false),
+    // Diffusion accordée par défaut ; le formulaire propose une case pour la refuser.
+    allows_broadcast: z.boolean().default(true),
     preferred_audition_date: isoDateSchema.nullish().transform((v) => v ?? null),
     accepted_rules: z.literal(true, "Vous devez accepter le règlement du tremplin pour soumettre votre candidature"),
     ...applicationBase,
