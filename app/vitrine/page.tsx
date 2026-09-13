@@ -1,15 +1,9 @@
-import { HeroSection } from "@/components/vitrine/hero-section"
-import { AboutSection } from "@/components/vitrine/about-section"
-import { FinalistsSection } from "@/components/vitrine/finalists-section"
-import { PartnersSection } from "@/components/vitrine/partners-section"
+import { getVitrineData } from "@/lib/vitrine/site"
+import { VitrineHome } from "@/components/vitrine/vitrine-site"
 
-export default function VitrinePage() {
-  return (
-    <>
-      <HeroSection />
-      <AboutSection />
-      <FinalistsSection />
-      <PartnersSection />
-    </>
-  )
+export const dynamic = "force-dynamic"
+
+export default async function VitrinePage() {
+  const data = await getVitrineData()
+  return <VitrineHome data={data} />
 }

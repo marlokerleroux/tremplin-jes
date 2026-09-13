@@ -124,7 +124,7 @@ lib/
   results.ts        # Envoi des résultats des auditions
   blob-storage.ts   # Stockage privé Vercel Blob
   rate-limit.ts     # Limitation de débit (base de données)
-  vitrine/data.ts   # Données événement, finalistes, partenaires
+  vitrine/          # Modes du site vitrine (règles pures) et chargement des données
 middleware.ts       # Routage multi-domaine + protection des pages
 prisma/
   schema.prisma     # Schéma de la base de données

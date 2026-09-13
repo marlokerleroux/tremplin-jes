@@ -22,6 +22,8 @@ psql -h "$PG_HOST" -p "$PG_PORT" -U "$PG_USER" -q -c "DROP DATABASE IF EXISTS tr
 npx prisma migrate deploy >/dev/null 2>&1 || { echo "migrate failed"; exit 1; }
 SEED_ADMIN_PASSWORD='AdminTremplin2027!' npx tsx prisma/seed.ts >/dev/null 2>&1 || { echo "seed failed"; exit 1; }
 psql -h "$PG_HOST" -p "$PG_PORT" -U "$PG_USER" -d tremplin_e2e -q -c "UPDATE smtp_config SET smtp_host='127.0.0.1', smtp_port=2525, smtp_secure=false;"
+# Le cache de données Next.js (unstable_cache) survit aux redémarrages : on repart de zéro avec la base.
+rm -rf .next/cache/fetch-cache
 nohup pnpm start > /tmp/e2e-server.log 2>&1 &
 SERVER_PID=$!
 for i in $(seq 1 60); do curl -s -o /dev/null http://localhost:3000/auth/login && break; sleep 1; done

@@ -83,12 +83,14 @@ Key tables: `profiles`, `applications`, `time_slots`, `technical_sheets` (one pe
 
 ### Vitrine Site (`app/vitrine/`)
 
-Public-facing showcase site with:
-- `app/vitrine/page.tsx` — Landing page (hero, about, finalists, partners)
-- `app/vitrine/a-propos/page.tsx` — About page (association history, press)
-- `app/vitrine/layout.tsx` — Shared layout with navbar, footer, JSON-LD structured data
-- `components/vitrine/` — All vitrine-specific components
-- `lib/vitrine/data.ts` — Event data, finalists, partners (updated manually each season)
+Public-facing showcase site, driven by the database and the admin **Site vitrine** tab (no redeploy needed):
+- `lib/vitrine/modes.ts` — the four display modes (`preseason`, `auditions`, `finale`, `aftermath`), auditions phase derived from season dates, finalist/tour-date normalisation (unit tested)
+- `lib/vitrine/site.ts` — server loader (`getVitrineData`, deduped per request with React `cache`, no data cache so admin changes publish instantly); tables `vitrine_config` (mode, banner, intro texts), `vitrine_editions` (one row per edition: finale details, finalists JSON, winners, aftermath text/links, tour dates JSON), `vitrine_partners`, `vitrine_media`
+- `app/vitrine/layout.tsx` (metadata + JSON-LD per mode) and `app/vitrine/page.tsx`, both `force-dynamic`; `components/vitrine/vitrine-site.tsx` composes sections per mode
+- `app/vitrine/a-propos/page.tsx` — About page (static)
+- Images uploaded from the admin are stored on the private Blob store and served publicly by `/api/vitrine/media/[id]` (immutable cache); repo images under `/images/vitrine/` still work
+- Admin preview of any mode: `/admin/vitrine-preview?mode=…` (admin only, candidat host)
+- Admin API: `/api/admin/vitrine` (GET all, PUT config), `/api/admin/vitrine/edition` (+ `/import-finalists` from the Résultats tab), `/api/admin/vitrine/partners`, `/api/admin/vitrine/media`
 
 ### API Routes (`app/api/`)
 

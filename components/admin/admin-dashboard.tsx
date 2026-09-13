@@ -19,6 +19,7 @@ import { EditionsPanel } from "./editions-panel"
 import { ResultsTab } from "./results-tab"
 import { EmailTemplatesPanel } from "./email-templates-panel"
 import { RemindersPanel } from "./reminders-panel"
+import { VitrineSettings } from "./vitrine-settings"
 import { ApplicationDetailsDialog } from "./application-details-dialog"
 import { EditApplicationDialog } from "./edit-application-dialog"
 import { UploadDialog, type UploadTarget } from "./upload-dialog"
@@ -113,11 +114,12 @@ export function AdminDashboard({ initialApplications, initialTimeSlots, initialS
         )}
 
         <Tabs defaultValue="applications" className="space-y-6">
-          <TabsList className="grid h-auto w-full max-w-3xl grid-cols-2 sm:grid-cols-5">
+          <TabsList className="grid h-auto w-full max-w-4xl grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
             <TabsTrigger value="applications">Candidatures</TabsTrigger>
             <TabsTrigger value="schedule">Créneaux</TabsTrigger>
             <TabsTrigger value="auditions">Mode Auditions</TabsTrigger>
             <TabsTrigger value="results">Résultats</TabsTrigger>
+            <TabsTrigger value="vitrine">Site vitrine</TabsTrigger>
             <TabsTrigger value="settings">Paramètres</TabsTrigger>
           </TabsList>
 
@@ -159,6 +161,10 @@ export function AdminDashboard({ initialApplications, initialTimeSlots, initialS
               onFinalistChange={handleFinalistChange}
               onRefresh={refreshApplications}
             />
+          </TabsContent>
+
+          <TabsContent value="vitrine">
+            <VitrineSettings currentEdition={season.edition} />
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-6">

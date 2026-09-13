@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { EVENT_DATE } from "@/lib/vitrine/data"
 
 interface TimeLeft {
   days: number
@@ -10,8 +9,8 @@ interface TimeLeft {
   seconds: number
 }
 
-function calculateTimeLeft(): TimeLeft {
-  const difference = EVENT_DATE.getTime() - Date.now()
+function calculateTimeLeft(target: number): TimeLeft {
+  const difference = target - Date.now()
   if (difference <= 0) {
     return { days: 0, hours: 0, minutes: 0, seconds: 0 }
   }
@@ -34,33 +33,27 @@ function TimeBlock({ value, label }: { value: number; label: string }) {
   )
 }
 
-export function CountdownTimer() {
+/** Compte à rebours jusqu'à un instant (ISO). */
+export function CountdownTimer({ target, label }: { target: string; label?: string }) {
+  const targetMs = new Date(target).getTime()
   const [timeLeft, setTimeLeft] = useState<TimeLeft | null>(null)
 
   useEffect(() => {
-    setTimeLeft(calculateTimeLeft())
-    const timer = setInterval(() => {
-      setTimeLeft(calculateTimeLeft())
-    }, 1000)
+    setTimeLeft(calculateTimeLeft(targetMs))
+    const timer = setInterval(() => setTimeLeft(calculateTimeLeft(targetMs)), 1000)
     return () => clearInterval(timer)
-  }, [])
+  }, [targetMs])
 
-  if (!timeLeft) {
-    return (
-      <div className="flex gap-3 md:gap-6 justify-center">
-        {["Jours", "Heures", "Minutes", "Secondes"].map((label) => (
-          <TimeBlock key={label} value={0} label={label} />
-        ))}
-      </div>
-    )
-  }
-
+  const values = timeLeft ?? { days: 0, hours: 0, minutes: 0, seconds: 0 }
   return (
-    <div className="flex gap-3 md:gap-6 justify-center">
-      <TimeBlock value={timeLeft.days} label="Jours" />
-      <TimeBlock value={timeLeft.hours} label="Heures" />
-      <TimeBlock value={timeLeft.minutes} label="Minutes" />
-      <TimeBlock value={timeLeft.seconds} label="Secondes" />
+    <div className="space-y-3">
+      {label && <p className="text-white/80 text-sm uppercase tracking-widest font-bold">{label}</p>}
+      <div className="flex gap-3 md:gap-6 justify-center">
+        <TimeBlock value={values.days} label="Jours" />
+        <TimeBlock value={values.hours} label="Heures" />
+        <TimeBlock value={values.minutes} label="Minutes" />
+        <TimeBlock value={values.seconds} label="Secondes" />
+      </div>
     </div>
   )
 }

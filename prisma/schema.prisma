@@ -225,3 +225,70 @@ model EmailTemplate {
 
   @@map("email_templates")
 }
+
+/// Configuration du site vitrine (une seule ligne) : mode d'affichage et bandeau d'annonce.
+model VitrineConfig {
+  id              String   @id @default(uuid()) @db.Uuid
+  // "preseason" | "auditions" | "finale" | "aftermath"
+  mode            String   @default("finale")
+  banner_enabled  Boolean  @default(false)
+  banner_text     String?
+  banner_url      String?
+  // Texte d'explication affiché en mode auditions (le site sert de page d'explication).
+  auditions_intro String?
+  // Accroche affichée en mode avant-ouverture.
+  preseason_text  String?
+  updated_at      DateTime @updatedAt
+
+  @@map("vitrine_config")
+}
+
+/// Finale, palmarès et après-finale d'une édition (site vitrine).
+model VitrineEdition {
+  edition              Int       @id
+  anniversary_label    String?
+  final_date           DateTime?
+  final_venue          String?
+  final_address        String?
+  final_city           String?
+  ticket_url           String?
+  pass_culture_url     String?
+  price_label          String?
+  jury_prize_text      String?
+  public_prize_text    String?
+  jury_winner          String?
+  public_winner        String?
+  aftermath_text       String?
+  aftermath_video_url  String?
+  aftermath_photos_url String?
+  // [{ id, name, genre, description, image, youtubeId }]
+  finalists            Json      @default("[]")
+  // [{ date, name, city, url }]
+  tour_dates           Json      @default("[]")
+  updated_at           DateTime  @updatedAt
+
+  @@map("vitrine_editions")
+}
+
+model VitrinePartner {
+  id         String   @id @default(uuid()) @db.Uuid
+  name       String
+  logo_url   String
+  url        String?
+  position   Int      @default(0)
+  is_active  Boolean  @default(true)
+  updated_at DateTime @updatedAt
+
+  @@map("vitrine_partners")
+}
+
+/// Images du site vitrine envoyées depuis l'administration (stockées sur Vercel Blob, servies par /api/vitrine/media/[id]).
+model VitrineMedia {
+  id           String   @id @default(uuid()) @db.Uuid
+  blob_url     String
+  content_type String
+  filename     String
+  created_at   DateTime @default(now())
+
+  @@map("vitrine_media")
+}

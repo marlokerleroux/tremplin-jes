@@ -124,3 +124,9 @@ export async function deleteBlobs(urls: Array<string | null | undefined>): Promi
 export async function deleteBlob(url: string | null | undefined): Promise<DeleteBlobsResult> {
   return deleteBlobs([url])
 }
+
+/** Envoi d'un fichier quelconque (images du site vitrine) sur le store privé. */
+export async function uploadPrivateFile(pathname: string, data: Buffer, contentType: string): Promise<string> {
+  const blob = await put(pathname, data, { access: "private", contentType, addRandomSuffix: true })
+  return blob.url
+}

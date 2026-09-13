@@ -87,6 +87,11 @@ await page.getByRole("tab", { name: "Résultats" }).click(); await measure("admi
 await page.getByRole("tab", { name: "Paramètres" }).click(); await page.locator("#template-subject").waitFor()
 await page.locator("#template-key").click(); await page.getByRole("option", { name: /Rappel une semaine/ }).click(); await page.waitForTimeout(300)
 await measure("admin paramètres")
+await page.request.put(`${BASE}/api/admin/vitrine/edition`, { data: { edition: 2027, final_venue: LONG.slice(0, 80), ticket_url: "https://example.org/" + "x".repeat(80), price_label: "à partir de 7 €", jury_winner: LONG.slice(0, 60), public_winner: "Ana", aftermath_text: LONG.repeat(2), finalists: [{ id: "a", name: LONG.slice(0, 60), genre: LONG.slice(0, 50), description: LONG.repeat(2) }, { id: "b", name: "Ana", genre: "Pop" }], tour_dates: [{ date: "2027-07-05", name: LONG.slice(0, 80), city: LONG.slice(0, 40), url: "https://example.org" }] } })
+await page.goto(`${BASE}/admin`); await page.getByRole("tab", { name: "Site vitrine" }).click(); await page.locator("#final-venue").waitFor(); await measure("admin site vitrine")
+for (const mode of ["preseason", "auditions", "finale", "aftermath"]) {
+  await page.goto(`${BASE}/admin/vitrine-preview?mode=${mode}`); await measure(`vitrine ${mode}`)
+}
 await page.goto(`${BASE}/admin/print/candidates?status=validated`); await measure("impression fiches jury")
 await page.goto(`${BASE}/admin/print/day?date=2026-10-10`); await measure("impression ordre de passage")
 await page.goto(`${BASE}/dashboard`); await measure("dashboard admin redirigé")

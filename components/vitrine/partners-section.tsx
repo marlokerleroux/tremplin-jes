@@ -1,7 +1,7 @@
 import Image from "next/image"
-import { partners } from "@/lib/vitrine/data"
+import type { PartnerDTO } from "@/lib/vitrine/site"
 
-export function PartnersSection() {
+export function PartnersSection({ partners }: { partners: PartnerDTO[] }) {
   if (partners.length === 0) {
     return (
       <section id="partenaires" className="scroll-mt-20 py-20 md:py-28 bg-primary/5">
@@ -16,14 +16,12 @@ export function PartnersSection() {
   return (
     <section id="partenaires" className="scroll-mt-20 py-20 md:py-28 bg-primary/5">
       <div className="container mx-auto px-4">
-        <h2 className="text-3xl md:text-5xl font-extrabold text-primary text-center mb-16">
-          Nos Partenaires
-        </h2>
+        <h2 className="text-3xl md:text-5xl font-extrabold text-primary text-center mb-16">Nos Partenaires</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-8 items-center max-w-5xl mx-auto">
           {partners.map((partner) => {
             const img = (
               <Image
-                src={partner.logo}
+                src={partner.logo_url}
                 alt={partner.name}
                 width={160}
                 height={80}
@@ -31,11 +29,11 @@ export function PartnersSection() {
               />
             )
             return partner.url ? (
-              <a key={partner.name} href={partner.url} target="_blank" rel="noopener noreferrer">
+              <a key={partner.id} href={partner.url} target="_blank" rel="noopener noreferrer" title={partner.name}>
                 {img}
               </a>
             ) : (
-              <div key={partner.name}>{img}</div>
+              <div key={partner.id} title={partner.name}>{img}</div>
             )
           })}
         </div>
