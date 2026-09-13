@@ -6,7 +6,7 @@ import { signupSchema } from "@/lib/validation/auth"
 import { formatZodError } from "@/lib/validation/common"
 import { getClientIp, hitRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { getSeasonState } from "@/lib/season-config"
-import { sendWelcomeEmail } from "@/lib/email/notifications"
+import { sendWelcomeWithVerification } from "@/lib/email-verification"
 
 export async function POST(request: Request) {
   try {
@@ -53,10 +53,10 @@ export async function POST(request: Request) {
       throw error
     }
 
-    // Email de bienvenue (non bloquant : l'échec est journalisé, le compte est créé).
-    await sendWelcomeEmail(profile.email, profile.first_name, profile.last_name)
+    // Email de bienvenue avec lien de vérification (non bloquant : l'échec est journalisé, le compte est créé).
+    const email = await sendWelcomeWithVerification(profile)
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, verificationEmailSent: email.success })
   } catch (error) {
     console.error("Signup error:", error)
     return NextResponse.json({ error: "Erreur lors de la création du compte" }, { status: 500 })

@@ -10,10 +10,17 @@ export function escapeHtml(value: string | number | null | undefined): string {
     .replace(/'/g, "&#39;")
 }
 
+export interface EmailAttachment {
+  filename: string
+  content: string | Buffer
+  contentType: string
+}
+
 export interface EmailTemplate {
   subject: string
   html: string
   text: string
+  attachments?: EmailAttachment[]
 }
 
 interface BaseEmailData {
@@ -22,7 +29,7 @@ interface BaseEmailData {
 }
 
 // Template de base avec le style du site
-function getEmailLayout(content: string): string {
+export function getEmailLayout(content: string): string {
   return `
 <!DOCTYPE html>
 <html lang="fr">
@@ -129,36 +136,90 @@ function getEmailLayout(content: string): string {
   `
 }
 
-// 1. Email de bienvenue après création du compte
-export function getWelcomeEmail(data: BaseEmailData): EmailTemplate {
+// 1. Email de bienvenue après création du compte (avec lien de vérification de l'adresse)
+export function getWelcomeEmail(data: BaseEmailData & { verifyUrl: string }): EmailTemplate {
   const content = `
     <h2>Bienvenue ${escapeHtml(data.firstName)} !</h2>
     <p>Votre compte a été créé avec succès. Nous sommes ravis de vous accueillir pour le Tremplin Jeunes en Scène !</p>
-    
+
     <div class="info-box">
-      <strong>Prochaines étapes :</strong>
-      <ol style="margin: 10px 0; padding-left: 20px;">
-        <li>Complétez votre candidature en ligne</li>
-        <li>Envoyez votre fiche technique</li>
-        <li>Attendez la validation de votre dossier</li>
-      </ol>
+      <strong>Dernière étape : confirmez votre adresse email</strong><br>
+      Cliquez sur le bouton ci-dessous pour vérifier votre adresse. C'est indispensable pour déposer votre candidature
+      et recevoir votre convocation.
     </div>
-    
-    <p>Vous pouvez dès maintenant accéder à votre espace candidat et commencer à remplir votre dossier.</p>
-    
-    <a href="${getSiteUrl()}/dashboard" class="button">
-      Accéder à mon espace
+
+    <a href="${escapeHtml(data.verifyUrl)}" class="button">
+      Confirmer mon adresse email
     </a>
-    
+
+    <p style="color: #666; font-size: 14px;">
+      Si le bouton ne fonctionne pas, copiez-collez ce lien dans votre navigateur :<br>
+      <a href="${escapeHtml(data.verifyUrl)}" style="color: #246BDC;">${escapeHtml(data.verifyUrl)}</a>
+    </p>
+
+    <p style="margin-top: 30px;"><strong>Ensuite :</strong></p>
+    <ol style="margin: 10px 0; padding-left: 20px;">
+      <li>Complétez votre candidature en ligne</li>
+      <li>Envoyez votre fiche technique (et l'autorisation parentale pour les mineurs)</li>
+      <li>Attendez la validation de votre dossier</li>
+    </ol>
+
     <p style="margin-top: 30px; color: #666; font-size: 14px;">
       Si vous avez des questions, n'hésitez pas à nous contacter.
     </p>
   `
 
   return {
-    subject: "Bienvenue sur le Tremplin Jeunes en Scène !",
+    subject: "Bienvenue ! Confirmez votre adresse email - Tremplin Jeunes en Scène",
     html: getEmailLayout(content),
-    text: `Bienvenue ${data.firstName} !\n\nVotre compte a été créé avec succès. Vous pouvez dès maintenant accéder à votre espace candidat et commencer à remplir votre dossier.\n\nTremplin Jeunes en Scène - Organisé par Pass'Musique`,
+    text: `Bienvenue ${data.firstName} !\n\nVotre compte a été créé avec succès. Confirmez votre adresse email pour pouvoir déposer votre candidature : ${data.verifyUrl}\n\nTremplin Jeunes en Scène - Organisé par Pass'Musique`,
+  }
+}
+
+// 1 bis. Renvoi du lien de vérification de l'adresse email
+export function getVerificationEmail(data: BaseEmailData & { verifyUrl: string }): EmailTemplate {
+  const content = `
+    <h2>Confirmez votre adresse email</h2>
+    <p>Bonjour ${escapeHtml(data.firstName)},</p>
+    <p>Cliquez sur le bouton ci-dessous pour confirmer votre adresse email et accéder au dépôt de candidature.</p>
+
+    <a href="${escapeHtml(data.verifyUrl)}" class="button">
+      Confirmer mon adresse email
+    </a>
+
+    <p style="color: #666; font-size: 14px;">
+      Si le bouton ne fonctionne pas, copiez-collez ce lien dans votre navigateur :<br>
+      <a href="${escapeHtml(data.verifyUrl)}" style="color: #246BDC;">${escapeHtml(data.verifyUrl)}</a>
+    </p>
+
+    <div class="info-box">
+      Si vous n'êtes pas à l'origine de cette demande, ignorez simplement cet email.
+    </div>
+  `
+
+  return {
+    subject: "Confirmez votre adresse email - Tremplin Jeunes en Scène",
+    html: getEmailLayout(content),
+    text: `Bonjour ${data.firstName},\n\nConfirmez votre adresse email en ouvrant ce lien : ${data.verifyUrl}\n\nTremplin Jeunes en Scène - Organisé par Pass'Musique`,
+  }
+}
+
+// 1 ter. Notification interne à l'administration
+export function getAdminNotificationEmail(data: { title: string; lines: string[]; adminUrl: string }): EmailTemplate {
+  const content = `
+    <h2>${escapeHtml(data.title)}</h2>
+    <div class="info-box">
+      ${data.lines.map((line) => `<p style="margin: 4px 0;">${escapeHtml(line)}</p>`).join("\n")}
+    </div>
+    <a href="${escapeHtml(data.adminUrl)}" class="button">
+      Ouvrir l'administration
+    </a>
+  `
+
+  return {
+    subject: `[Admin] ${data.title}`,
+    html: getEmailLayout(content),
+    text: `${data.title}\n\n${data.lines.join("\n")}\n\n${data.adminUrl}`,
   }
 }
 
@@ -217,76 +278,6 @@ export function getTechnicalSheetSubmittedEmail(data: BaseEmailData): EmailTempl
     subject: "Fiche technique reçue - Tremplin Jeunes en Scène",
     html: getEmailLayout(content),
     text: `Bonjour ${data.firstName},\n\nNous avons bien reçu votre fiche technique. Vérifiez sur votre espace candidat que tous les documents demandés sont bien fournis.\n\nTremplin Jeunes en Scène - Organisé par Pass'Musique`,
-  }
-}
-
-// 4. Email de validation de candidature
-export function getApplicationValidatedEmail(data: BaseEmailData): EmailTemplate {
-  const content = `
-    <h2>🎉 Candidature validée !</h2>
-    <p>Bonjour ${escapeHtml(data.firstName)},</p>
-    <p>Excellente nouvelle ! Votre candidature a été validée par notre équipe.</p>
-    
-    <div class="info-box">
-      <strong>Félicitations !</strong><br>
-      Votre dossier est complet et conforme. Vous allez bientôt recevoir votre créneau d'audition.
-    </div>
-    
-    <p>Nous vous informerons dès que votre horaire de passage sera défini.</p>
-    
-    <a href="${getSiteUrl()}/dashboard" class="button">
-      Voir mon dossier
-    </a>
-    
-    <p style="margin-top: 30px; color: #666; font-size: 14px;">
-      Préparez-vous bien pour votre audition ! Nous avons hâte de vous voir sur scène.
-    </p>
-  `
-
-  return {
-    subject: "🎉 Candidature validée - Tremplin Jeunes en Scène",
-    html: getEmailLayout(content),
-    text: `Bonjour ${data.firstName},\n\nExcellente nouvelle ! Votre candidature a été validée. Vous allez bientôt recevoir votre créneau d'audition.\n\nTremplin Jeunes en Scène - Organisé par Pass'Musique`,
-  }
-}
-
-// 5. Email d'attribution de créneau d'audition
-export function getTimeSlotAssignedEmail(
-  data: BaseEmailData & { date: string; time: string; venue: string },
-): EmailTemplate {
-  const content = `
-    <h2>🎵 Votre créneau d'audition</h2>
-    <p>Bonjour ${escapeHtml(data.firstName)},</p>
-    <p>Votre créneau d'audition a été défini !</p>
-    
-    <div class="info-box">
-      <strong>Informations de votre audition :</strong><br>
-      <p style="margin: 10px 0;">
-        📅 <strong>Date :</strong> ${escapeHtml(data.date)}<br>
-        🕐 <strong>Heure :</strong> ${escapeHtml(data.time)}<br>
-        📍 <strong>Lieu :</strong> ${escapeHtml(data.venue)}
-      </p>
-    </div>
-    
-    <p><strong>Important :</strong></p>
-    <ul style="margin: 10px 0; padding-left: 20px;">
-      <li>Présentez-vous 30 minutes avant votre créneau</li>
-      <li>Préparez votre matériel selon votre fiche technique</li>
-    </ul>
-    
-    <a href="${getSiteUrl()}/dashboard" class="button">
-      Voir les détails
-    </a>
-    
-    <p style="margin-top: 30px; color: #666; font-size: 14px;">
-      Nous avons hâte de vous voir sur scène ! Bonne chance pour votre audition.
-    </p>
-  `
-
-  return {
-    subject: "🎵 Votre créneau d'audition - Tremplin Jeunes en Scène",
-    html: getEmailLayout(content),
-    text: `Bonjour ${data.firstName},\n\nVotre créneau d'audition a été défini :\nDate : ${data.date}\nHeure : ${data.time}\nLieu : ${data.venue}\n\nPrésentez-vous 30 minutes avant votre créneau.\n\nTremplin Jeunes en Scène - Organisé par Pass'Musique`,
   }
 }
 

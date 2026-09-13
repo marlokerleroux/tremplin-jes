@@ -36,7 +36,7 @@ Package manager is **pnpm**. Local Postgres can be used for development (see `.e
 - **NextAuth v5** (Auth.js) for authentication with Credentials provider
 - **Tailwind CSS v4** with **shadcn/ui** (New York style, RSC-enabled)
 - **Zod 4** for validation, shared between client forms and API routes (`lib/validation/`)
-- **nodemailer** for SMTP email sending (config stored in DB `smtp_config` table, editable in the admin UI)
+- **nodemailer** for SMTP email sending (config stored in DB `smtp_config` table, editable in the admin UI). Candidate-facing emails (validation, rejection, convocation with `.ics` attachment, J-7/J-1 reminders, results) use editable templates: defaults in `lib/email/editable-templates.ts`, overrides in the `email_templates` table, plain-text bodies with `{{variables}}` rendered by `lib/email/template-engine.ts`
 - **Vercel Blob** (private access) for PDF storage, served through authenticated `/api/documents/*` routes
 - **sonner** for toasts, **jszip/xlsx** (SheetJS from cdn.sheetjs.com) for exports
 - **Deployed on Vercel** (project: `passmusique`, scope: `marlo`)
@@ -59,6 +59,14 @@ Routing is handled in `middleware.ts` based on hostname:
 
 NextAuth v5 with Credentials provider (`lib/auth-config.ts`, which extends the edge-safe `lib/auth-config.edge.ts`). Emails are normalised to lowercase; logins are rate limited (`lib/rate-limit.ts`, table `rate_limit_hits`). The `profiles` table has a `role` field (`admin` | `user`). After login, users are redirected based on role (`/admin` or `/dashboard`). API routes use `requireApiUser()` / `requireApiAdmin()` from `lib/auth-helpers.ts`.
 
+### Email verification, results and reminders
+
+- Signup sends a welcome email with a verification link (`/auth/verify-email?token=`). `profiles.email_verified_at` must be set before an application can be created (`/api/application/create` returns 403 otherwise); candidates can resend or correct their address via `/api/auth/resend-verification`. Accounts created before this feature were backfilled as verified.
+- Admins are notified by email (all `admin` profiles) on each new application and when a dossier becomes complete (`lib/dossier.ts`).
+- **Résultats** tab: `applications.is_finalist` + `result_sent_at`; `/api/admin/results/send` emails every validated application (finalist / not selected templates).
+- Reminders: `/api/cron/reminders` (Vercel Cron, daily at 08:00 UTC, `CRON_SECRET` bearer auth) sends J-7 and J-1 emails once the schedule is validated (`lib/reminders.ts` rules, `lib/reminders-runner.ts`), cleans `rate_limit_hits`, and keeps the Supabase database awake. Admins can trigger the same run from Paramètres.
+- Printable jury documents (admin only): `/admin/print/candidates?id=|date=|status=validated` (one sheet per candidate with a blank jury grid) and `/admin/print/day?date=` (running order).
+
 ### Seasons (éditions)
 
 Everything season-specific lives in the single `schedule_config` row (`lib/season-config.ts`): `edition` (year of the final), registration window, audition dates, age reference date, venue, schedule validation flag. Applications and time slots carry an `edition` column; a profile can have one application per edition (`@@unique([user_id, edition])`). Eligibility and age rules are pure functions in `lib/season.ts` (unit tested). Admins manage seasons in the **Paramètres** tab (new season, dates, slot generation, SMTP, archives/purge by edition).
@@ -69,7 +77,7 @@ Everything season-specific lives in the single `schedule_config` row (`lib/seaso
 - `lib/prisma.ts` — singleton PrismaClient
 - `lib/admin-data.ts` — DTOs and queries for the admin UI
 
-Key tables: `profiles`, `applications`, `time_slots`, `technical_sheets` (one per application), `parental_authorizations`, `audition_tracking`, `smtp_config`, `schedule_config`, `password_reset_tokens`, `rate_limit_hits`.
+Key tables: `profiles`, `applications`, `time_slots`, `technical_sheets` (one per application), `parental_authorizations`, `audition_tracking`, `smtp_config`, `schedule_config`, `email_templates`, `password_reset_tokens`, `rate_limit_hits`.
 
 ### Vitrine Site (`app/vitrine/`)
 
@@ -83,18 +91,20 @@ Public-facing showcase site with:
 ### API Routes (`app/api/`)
 
 All business logic runs through App Router API routes; every write is validated with Zod and emails are sent server-side:
-- **Auth**: `/api/auth/[...nextauth]`, `/api/auth/signup`, `/api/auth/forgot-password`, `/api/auth/reset-password`
+- **Auth**: `/api/auth/[...nextauth]`, `/api/auth/signup`, `/api/auth/forgot-password`, `/api/auth/reset-password`, `/api/auth/resend-verification`
 - **Applications**: `/api/application/create`, `/api/application/delete`
 - **Uploads**: `/api/technical-sheet/upload`, `/api/parental-authorization/upload` (+ `/api/admin/...` variants)
 - **Documents** (authenticated PDF streaming): `/api/documents/technical-sheet/[applicationId]`, `/api/documents/parental-authorization/[applicationId]?member=N`
-- **Admin**: `/api/admin/applications`, `/api/admin/applications/status`, `/api/admin/application/update`, `/api/admin/audition-tracking`, `/api/admin/season` (+ `/new`, `/validate`, `/reset`), `/api/admin/time-slots` (+ `/assign`, `/remove`), `/api/admin/smtp-config` (+ `/test`), `/api/admin/editions` (+ `/[edition]` DELETE = purge)
+- **Admin**: `/api/admin/applications`, `/api/admin/applications/status`, `/api/admin/application/update`, `/api/admin/audition-tracking`, `/api/admin/season` (+ `/new`, `/validate`, `/reset`), `/api/admin/time-slots` (+ `/assign`, `/remove`), `/api/admin/smtp-config` (+ `/test`), `/api/admin/email-templates` (+ `/preview`, `/test`), `/api/admin/results` (+ `/send`), `/api/admin/reminders/run`, `/api/admin/editions` (+ `/[edition]` DELETE = purge)
+- **Cron**: `/api/cron/reminders` (GET, `Authorization: Bearer $CRON_SECRET`)
 - **Exports**: `/api/applications/export`, `/api/technical-sheets/download-all`
 
 ### Key Components
 
 - `components/registration-form.tsx` — application form (single page, driven by season config)
 - `components/signup-form.tsx` — account creation form
-- `components/admin/` — admin dashboard split by tab (`applications-tab`, `schedule-tab`, `auditions-tab`, `season-settings`, `smtp-settings`, `editions-panel`) plus dialogs
+- `components/admin/` — admin dashboard split by tab (`applications-tab`, `schedule-tab`, `auditions-tab`, `results-tab`, `season-settings`, `smtp-settings`, `email-templates-panel`, `reminders-panel`, `editions-panel`) plus dialogs
+- `components/registration-form.tsx` keeps a per-edition draft in `localStorage` (cleared on submit)
 - `components/technical-sheet-upload.tsx`, `components/parental-authorization-upload.tsx` — PDF uploads
 - `components/ui/` — shadcn/ui primitives
 
@@ -107,7 +117,8 @@ All business logic runs through App Router API routes; every write is validated 
 - `AUTH_SECRET` — NextAuth secret
 - `AUTH_URL` — `https://candidat.tremplin-jeunes-en-scene.fr`
 - `NEXT_PUBLIC_SITE_URL` — `https://candidat.tremplin-jeunes-en-scene.fr`
-- `BLOB_READ_WRITE_TOKEN` — Vercel Blob storage
+- `BLOB_READ_WRITE_TOKEN` — Vercel Blob storage (+ `BLOB_READ_WRITE_TOKEN_LEGACY` for the old public store)
+- `CRON_SECRET` — bearer secret sent by Vercel Cron to `/api/cron/reminders`
 
 SMTP configuration is stored in the `smtp_config` database table, not in env vars. The legacy `NEXT_PUBLIC_SUPABASE_*` variables are no longer used.
 

@@ -64,7 +64,8 @@ export function SignupForm({ edition }: { edition: number }) {
         redirect: false,
       })
 
-      // Navigation complète : la session vient d'être créée côté serveur.
+      // Navigation complète : la session vient d'être créée côté serveur. Le tableau de bord
+      // demande la confirmation de l'adresse email avant le dépôt de candidature.
       window.location.assign(signInResult?.error ? "/auth/login" : "/dashboard")
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "Une erreur est survenue")
@@ -216,6 +217,10 @@ export function SignupForm({ edition }: { edition: number }) {
                   et le traitement de mes données personnelles *
                 </label>
               </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Un email de confirmation vous sera envoyé : vérifiez bien votre adresse, elle servira à recevoir votre
+                convocation et les résultats.
+              </p>
               {error && (
                 <p className="text-sm text-destructive" role="alert">
                   {error}

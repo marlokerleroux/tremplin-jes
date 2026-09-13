@@ -45,4 +45,5 @@ export const RATE_LIMITS = {
   forgotPassword: { limit: 3, windowMs: 60 * 60 * 1000 },
   signupPerIp: { limit: 20, windowMs: 60 * 60 * 1000 },
   resetPasswordPerIp: { limit: 10, windowMs: 15 * 60 * 1000 },
+  verificationResendPerIp: { limit: 6, windowMs: 60 * 60 * 1000 },
 } as const

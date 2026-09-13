@@ -5,6 +5,7 @@ import { deleteBlob, uploadPrivatePdf } from "@/lib/blob-storage"
 import { pdfErrorMessage, readPdfFile } from "@/lib/pdf"
 import { normalizeGroupMembers } from "@/lib/admin-data"
 import { uuidSchema } from "@/lib/validation/common"
+import { notifyAdminsIfComplete } from "@/lib/dossier"
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,7 +25,10 @@ export async function POST(request: NextRequest) {
 
     const application = await prisma.application.findFirst({
       where: { id: applicationId.data, user_id: session.user.id },
-      include: { parental_authorizations: { where: { member_index: memberIndex }, select: { pdf_url: true } } },
+      include: {
+        parental_authorizations: { where: { member_index: memberIndex }, select: { pdf_url: true } },
+        profile: { select: { email: true, first_name: true, last_name: true } },
+      },
     })
     if (!application) {
       return NextResponse.json({ error: "Candidature non trouvée" }, { status: 404 })
@@ -59,6 +63,8 @@ export async function POST(request: NextRequest) {
     if (previousUrl && previousUrl !== blobUrl) {
       await deleteBlob(previousUrl)
     }
+
+    await notifyAdminsIfComplete(application)
 
     return NextResponse.json({ success: true, filename: file.name, size: file.size })
   } catch (error) {

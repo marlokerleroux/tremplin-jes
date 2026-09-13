@@ -5,6 +5,7 @@ import { deleteBlob, uploadPrivatePdf } from "@/lib/blob-storage"
 import { pdfErrorMessage, readPdfFile } from "@/lib/pdf"
 import { sendTechnicalSheetSubmittedEmail } from "@/lib/email/notifications"
 import { uuidSchema } from "@/lib/validation/common"
+import { notifyAdminsIfComplete } from "@/lib/dossier"
 
 export async function POST(request: NextRequest) {
   try {
@@ -48,6 +49,7 @@ export async function POST(request: NextRequest) {
     }
 
     await sendTechnicalSheetSubmittedEmail(application.profile.email, application.profile.first_name, application.profile.last_name)
+    await notifyAdminsIfComplete(application)
 
     return NextResponse.json({ success: true, filename: file.name, size: file.size })
   } catch (error) {

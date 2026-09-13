@@ -53,6 +53,10 @@ export interface AdminApplicationDTO {
   accepted_rules: boolean
   status: string
   time_slot_id: string | null
+  is_finalist: boolean
+  result_sent_at: string | null
+  reminder_j7_sent_at: string | null
+  reminder_j1_sent_at: string | null
   created_at: string
   profile: ProfileDTO | null
   technical_sheet: { id: string; pdf_url: string | null } | null
@@ -100,6 +104,9 @@ export function toAdminApplicationDTO(app: ApplicationWithRelations): AdminAppli
     ...rest,
     group_members: normalizeGroupMembers(app.group_members),
     created_at: app.created_at.toISOString(),
+    result_sent_at: app.result_sent_at?.toISOString() ?? null,
+    reminder_j7_sent_at: app.reminder_j7_sent_at?.toISOString() ?? null,
+    reminder_j1_sent_at: app.reminder_j1_sent_at?.toISOString() ?? null,
     profile: profile
       ? {
           first_name: profile.first_name,

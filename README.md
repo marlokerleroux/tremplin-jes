@@ -79,7 +79,30 @@ Pour finaliser la mise en privé :
 5. **Archives** : export Excel et ZIP des fiches techniques par édition, puis purge définitive d'une édition passée
    (candidatures, fichiers, créneaux, comptes sans candidature) après la durée de conservation.
 
-Les emails sont envoyés par le serveur via la configuration SMTP renseignée dans l'onglet Paramètres.
+6. **Après les auditions** (onglet **Résultats**) : cocher les finalistes, puis « Envoyer les résultats » informe par
+   email chaque candidature validée (modèle « finaliste » ou « non retenu »).
+
+Les emails sont envoyés par le serveur via la configuration SMTP renseignée dans l'onglet Paramètres. Les textes des
+emails de validation, refus, convocation (avec invitation calendrier `.ics`), rappels J-7 / J-1 et résultats sont
+modifiables dans **Paramètres › Modèles d'emails** (variables `{{prenom}}`, `{{nom_scene}}`, `{{date_audition}}`…).
+
+### Vérification de l'adresse email
+
+À l'inscription, le candidat reçoit un lien de confirmation ; tant que son adresse n'est pas confirmée, il ne peut pas
+déposer de candidature (bandeau avec renvoi du lien et correction d'adresse). L'administration est prévenue par email
+à chaque nouvelle candidature et dès qu'un dossier est complet.
+
+### Rappels automatiques et tâche planifiée
+
+`vercel.json` déclare une tâche quotidienne (`/api/cron/reminders`, 08:00 UTC) qui envoie les rappels J-7 et J-1 aux
+candidats convoqués une fois le planning validé, nettoie la table de limitation de débit et maintient la base Supabase
+active (le plan gratuit met la base en pause après une semaine sans requête). La variable `CRON_SECRET` doit être
+définie sur Vercel (le bouton « Envoyer maintenant les rappels dus » de l'administration exécute la même logique).
+
+### Documents imprimables (jury et jour J)
+
+Depuis l'onglet Candidatures (bouton « Fiche » / « Fiches jury ») et l'onglet Mode Auditions (par journée) :
+fiche candidat imprimable avec grille de notation vierge, et ordre de passage par journée d'audition.
 
 ## Structure
 
@@ -96,7 +119,9 @@ lib/
   season.ts         # Règles de saison et d'éligibilité (pur, testé)
   season-config.ts  # Configuration de saison (serveur)
   validation/       # Schémas Zod partagés client/serveur
-  email/            # Templates et envoi SMTP
+  email/            # Templates, modèles modifiables, invitation .ics et envoi SMTP
+  reminders.ts      # Règles des rappels J-7 / J-1 (pur, testé)
+  results.ts        # Envoi des résultats des auditions
   blob-storage.ts   # Stockage privé Vercel Blob
   rate-limit.ts     # Limitation de débit (base de données)
   vitrine/data.ts   # Données événement, finalistes, partenaires

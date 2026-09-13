@@ -27,7 +27,7 @@ export function createTransport(smtpConfig: SMTPConfig) {
 }
 
 export async function sendEmail(
-  to: string,
+  to: string | string[],
   template: EmailTemplate,
   smtpConfig: SMTPConfig,
 ): Promise<{ success: boolean; error?: string }> {
@@ -39,6 +39,7 @@ export async function sendEmail(
       subject: template.subject,
       text: template.text,
       html: template.html,
+      attachments: template.attachments?.map((a) => ({ filename: a.filename, content: a.content, contentType: a.contentType })),
     })
     return { success: true }
   } catch (error) {

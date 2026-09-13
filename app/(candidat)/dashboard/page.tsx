@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Music, Calendar, Users, FileText, LogOut, Plus, MapPin, Clock } from "lucide-react"
+import { Music, Calendar, Users, FileText, LogOut, Plus, MapPin, Clock, Award } from "lucide-react"
 import Link from "next/link"
 import { handleSignOut } from "@/lib/auth"
 import Image from "next/image"
@@ -13,6 +13,7 @@ import { getCurrentApplication, getSeasonState } from "@/lib/season-config"
 import { computeAgeAt, formatDateFr, formatDateShortFr, formatDateTimeFr, isMinorAt } from "@/lib/season"
 import { normalizeGroupMembers } from "@/lib/admin-data"
 import { parentalAuthorizationUrl, technicalSheetUrl } from "@/lib/documents"
+import { VerifyEmailBanner } from "@/components/verify-email-banner"
 
 export default async function DashboardPage() {
   const session = await requireAuth()
@@ -43,7 +44,8 @@ export default async function DashboardPage() {
     .filter((member) => member.age !== null && isMinorAt(members[member.index].birthDate, season.ageReferenceDate))
 
   const hasTechnicalSheet = Boolean(application?.technical_sheet?.pdf_url)
-  const canApply = season.registration === "open"
+  const emailVerified = Boolean(fullProfile?.email_verified_at)
+  const canApply = season.registration === "open" && emailVerified
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -109,6 +111,12 @@ export default async function DashboardPage() {
           </p>
         </div>
 
+        {!emailVerified && fullProfile && (
+          <div className="mb-6">
+            <VerifyEmailBanner email={fullProfile.email} />
+          </div>
+        )}
+
         {/* No Application State */}
         {!application && (
           <Card className="border-2 border-dashed">
@@ -119,7 +127,9 @@ export default async function DashboardPage() {
                   ? `Vous n'avez pas encore soumis de candidature pour l'édition ${season.config.edition}`
                   : season.registration === "closed"
                     ? "Les inscriptions de cette édition sont closes"
-                    : "Les inscriptions ne sont pas encore ouvertes"}
+                    : season.registration === "not_yet_open"
+                      ? "Les inscriptions ne sont pas encore ouvertes"
+                      : "Confirmez votre adresse email pour déposer votre candidature"}
               </CardDescription>
             </CardHeader>
             <CardContent className="flex justify-center pb-6">
@@ -132,7 +142,7 @@ export default async function DashboardPage() {
                 </Button>
               ) : (
                 <Button size="lg" disabled>
-                  Inscriptions fermées
+                  {season.registration === "open" ? "Adresse email à confirmer" : "Inscriptions fermées"}
                 </Button>
               )}
             </CardContent>
@@ -142,6 +152,22 @@ export default async function DashboardPage() {
         {/* Application Exists */}
         {application && (
           <div className="space-y-6">
+            {application.result_sent_at && application.status === "validated" && (
+              <Card className={application.is_finalist ? "border-2 border-accent bg-gradient-to-br from-pink-50 to-white" : "border-2 border-gray-300"}>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <Award className={`h-6 w-6 ${application.is_finalist ? "text-accent" : "text-gray-500"}`} />
+                    <CardTitle>{application.is_finalist ? "Vous êtes finaliste !" : "Résultats des auditions"}</CardTitle>
+                  </div>
+                  <CardDescription>
+                    {application.is_finalist
+                      ? `Félicitations, ${application.stage_name} fait partie des finalistes de l'édition ${season.config.edition}. Les informations pratiques de la finale vous seront communiquées par email.`
+                      : `Merci pour votre participation aux auditions de l'édition ${season.config.edition}. ${application.stage_name} n'a pas été retenu pour la finale cette année ; nous vous encourageons à retenter votre chance.`}
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            )}
+
             {application.time_slot && season.config.is_validated && application.status !== "rejected" && (
               <Card className="border-2 border-green-500 bg-gradient-to-br from-green-50 to-emerald-50">
                 <CardHeader>

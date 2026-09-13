@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import { toast } from "sonner"
-import { Mic, Search } from "lucide-react"
+import { ListOrdered, Mic, Printer, Search } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { AdminApplicationDTO, AuditionTrackingDTO, TimeSlotDTO } from "@/lib/admin-data"
 import { apiJson, formatTime } from "@/lib/admin-client"
 import { formatDateFr } from "@/lib/season"
+import { candidateSheetsUrl, runningOrderUrl } from "@/lib/print-urls"
 import { NoteDialog } from "./note-dialog"
 
 type AuditionStatus = "not_arrived" | "arrived" | "ready" | "performed"
@@ -203,10 +205,26 @@ export function AuditionsTab({
 
           return (
             <div key={date} className="space-y-2">
-              <h3 className="font-semibold text-sm bg-muted px-3 py-2 rounded sticky top-0">
-                {formatDateFr(date)}
-                <span className="ml-2 text-muted-foreground font-normal">
-                  ({dayApplications.length} candidat{dayApplications.length > 1 ? "s" : ""})
+              <h3 className="font-semibold text-sm bg-muted px-3 py-2 rounded sticky top-0 flex flex-wrap items-center gap-2">
+                <span>
+                  {formatDateFr(date)}
+                  <span className="ml-2 text-muted-foreground font-normal">
+                    ({dayApplications.length} candidat{dayApplications.length > 1 ? "s" : ""})
+                  </span>
+                </span>
+                <span className="ml-auto flex gap-1">
+                  <Button asChild variant="ghost" size="sm" className="h-7 text-xs">
+                    <a href={runningOrderUrl(date)} target="_blank" rel="noopener noreferrer">
+                      <ListOrdered className="h-3 w-3 mr-1" />
+                      Ordre de passage
+                    </a>
+                  </Button>
+                  <Button asChild variant="ghost" size="sm" className="h-7 text-xs">
+                    <a href={candidateSheetsUrl({ date })} target="_blank" rel="noopener noreferrer">
+                      <Printer className="h-3 w-3 mr-1" />
+                      Fiches jury
+                    </a>
+                  </Button>
                 </span>
               </h3>
               <div className="space-y-1">

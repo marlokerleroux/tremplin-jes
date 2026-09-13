@@ -6,7 +6,8 @@ import { applicationCreateSchema } from "@/lib/validation/application"
 import { formatZodError } from "@/lib/validation/common"
 import { getSeasonState } from "@/lib/season-config"
 import { validateEligibility } from "@/lib/season"
-import { sendApplicationSubmittedEmail } from "@/lib/email/notifications"
+import { notifyAdmins, sendApplicationSubmittedEmail } from "@/lib/email/notifications"
+import { formatDateFr } from "@/lib/season"
 
 export async function POST(request: Request) {
   try {
@@ -23,6 +24,17 @@ export async function POST(request: Request) {
     const season = await getSeasonState()
     if (season.registration !== "open") {
       return NextResponse.json({ error: "Les inscriptions ne sont pas ouvertes" }, { status: 403 })
+    }
+
+    const profile = await prisma.profile.findUnique({
+      where: { id: session.user.id },
+      select: { email: true, first_name: true, last_name: true, email_verified_at: true },
+    })
+    if (!profile) {
+      return NextResponse.json({ error: "Compte introuvable" }, { status: 404 })
+    }
+    if (!profile.email_verified_at) {
+      return NextResponse.json({ error: "Confirmez votre adresse email avant de déposer votre candidature" }, { status: 403 })
     }
 
     const eligibility = validateEligibility(data.application_type, data.group_members, season.ageReferenceDate)
@@ -64,13 +76,12 @@ export async function POST(request: Request) {
       throw error
     }
 
-    const profile = await prisma.profile.findUnique({
-      where: { id: session.user.id },
-      select: { email: true, first_name: true, last_name: true },
-    })
-    if (profile) {
-      await sendApplicationSubmittedEmail(profile.email, profile.first_name, profile.last_name, application.application_type)
-    }
+    await sendApplicationSubmittedEmail(profile.email, profile.first_name, profile.last_name, application.application_type)
+    await notifyAdmins(`Nouvelle candidature : ${application.stage_name}`, [
+      `${application.application_type === "solo" ? "Artiste solo" : `Groupe (${data.group_members.length} membres)`} · ${application.musical_style} · édition ${application.edition}`,
+      `Candidat : ${profile.first_name} ${profile.last_name} · ${profile.email}`,
+      application.preferred_audition_date ? `Date d'audition souhaitée : ${formatDateFr(application.preferred_audition_date)}` : "Pas de date d'audition souhaitée",
+    ])
 
     return NextResponse.json({ success: true, applicationId: application.id })
   } catch (error) {

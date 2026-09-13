@@ -7,6 +7,8 @@ import { AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { getCurrentApplication, getSeasonState } from "@/lib/season-config"
 import { formatDateTimeFr } from "@/lib/season"
+import { prisma } from "@/lib/prisma"
+import { VerifyEmailBanner } from "@/components/verify-email-banner"
 
 export default async function ApplyPage() {
   const session = await requireAuth()
@@ -44,7 +46,10 @@ export default async function ApplyPage() {
     )
   }
 
-  const existingApplication = await getCurrentApplication(session.user.id, season.config.edition)
+  const [existingApplication, profile] = await Promise.all([
+    getCurrentApplication(session.user.id, season.config.edition),
+    prisma.profile.findUnique({ where: { id: session.user.id }, select: { email: true, email_verified_at: true } }),
+  ])
   if (existingApplication) {
     redirect("/dashboard")
   }
@@ -58,11 +63,23 @@ export default async function ApplyPage() {
             Complétez votre candidature pour l&#39;édition {season.config.edition} du Tremplin Jeunes en Scène
           </p>
         </div>
+        {profile && !profile.email_verified_at ? (
+          <div className="space-y-6">
+            <VerifyEmailBanner email={profile.email} />
+            <div className="flex justify-center">
+              <Button asChild variant="outline">
+                <Link href="/dashboard">Retour au tableau de bord</Link>
+              </Button>
+            </div>
+          </div>
+        ) : (
         <RegistrationForm
+          edition={season.config.edition}
           ageReferenceDate={season.ageReferenceDate}
           auditionDates={season.config.audition_dates}
           venue={season.venue}
         />
+        )}
       </div>
     </div>
   )

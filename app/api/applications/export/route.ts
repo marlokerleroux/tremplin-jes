@@ -71,6 +71,8 @@ export async function GET(request: Request) {
         "Fiche technique": app.technical_sheet?.pdf_url ? "Oui" : "Non",
         "Autorisations parentales": app.parental_authorizations.length,
         Statut: app.status === "validated" ? "Validée" : app.status === "rejected" ? "Refusée" : "En attente",
+        Finaliste: app.is_finalist ? "Oui" : "Non",
+        "Résultat envoyé": app.result_sent_at ? new Date(app.result_sent_at).toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" }) : "",
         "Date de candidature": new Date(app.created_at).toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" }),
       }
     })

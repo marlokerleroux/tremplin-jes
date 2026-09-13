@@ -13,6 +13,7 @@ import {
   FolderArchive,
   Music,
   Pencil,
+  Printer,
   Search,
   Users,
 } from "lucide-react"
@@ -26,6 +27,7 @@ import type { AdminApplicationDTO } from "@/lib/admin-data"
 import type { SeasonConfigDTO } from "@/lib/season-config"
 import { apiJson, formatTime, getMinorMembers, getMissingDocuments, getMissingParentalAuths, hasTechnicalSheet } from "@/lib/admin-client"
 import { formatDateFr } from "@/lib/season"
+import { candidateSheetsUrl } from "@/lib/print-urls"
 import { StatusBadge } from "./status-badge"
 
 export function ApplicationsTab({
@@ -84,6 +86,10 @@ export function ApplicationsTab({
       if (newStatus === "validated") {
         toast.success("Candidature validée", {
           description: result.emailSent ? "Le candidat a été prévenu par email." : "L'email de confirmation n'a pas pu être envoyé (vérifiez la configuration SMTP).",
+        })
+      } else if (newStatus === "rejected") {
+        toast.success("Candidature refusée", {
+          description: result.emailSent ? "Le candidat a été prévenu par email." : "L'email de refus n'a pas pu être envoyé (vérifiez la configuration SMTP).",
         })
       } else {
         toast.success("Statut mis à jour")
@@ -226,6 +232,12 @@ export function ApplicationsTab({
               <FolderArchive className="h-4 w-4 mr-2" />
               {isDownloadingZip ? "Téléchargement..." : "Télécharger toutes les fiches techniques (ZIP)"}
             </Button>
+            <Button asChild variant="outline" size="sm">
+              <a href={candidateSheetsUrl({ status: "validated" })} target="_blank" rel="noopener noreferrer">
+                <Printer className="h-4 w-4 mr-2" />
+                Fiches jury (candidatures validées)
+              </a>
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -348,6 +360,12 @@ export function ApplicationsTab({
                       <Button variant="outline" onClick={() => onOpenDetails(application)} size="sm" className="text-xs">
                         <Eye className="h-3 w-3 mr-1" />
                         Détails
+                      </Button>
+                      <Button asChild variant="outline" size="sm" className="text-xs">
+                        <a href={candidateSheetsUrl({ id: application.id })} target="_blank" rel="noopener noreferrer" aria-label={`Fiche jury de ${application.stage_name}`}>
+                          <Printer className="h-3 w-3 mr-1" />
+                          Fiche
+                        </a>
                       </Button>
                     </div>
                   </div>

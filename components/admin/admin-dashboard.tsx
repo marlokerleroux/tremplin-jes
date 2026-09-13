@@ -16,6 +16,9 @@ import { AuditionsTab } from "./auditions-tab"
 import { SeasonSettings } from "./season-settings"
 import { SmtpSettings } from "./smtp-settings"
 import { EditionsPanel } from "./editions-panel"
+import { ResultsTab } from "./results-tab"
+import { EmailTemplatesPanel } from "./email-templates-panel"
+import { RemindersPanel } from "./reminders-panel"
 import { ApplicationDetailsDialog } from "./application-details-dialog"
 import { EditApplicationDialog } from "./edit-application-dialog"
 import { UploadDialog, type UploadTarget } from "./upload-dialog"
@@ -80,6 +83,10 @@ export function AdminDashboard({ initialApplications, initialTimeSlots, initialS
     setApplications((apps) => apps.map((app) => (app.id === applicationId ? { ...app, audition_tracking: tracking } : app)))
   }, [])
 
+  const handleFinalistChange = useCallback((applicationId: string, isFinalist: boolean) => {
+    setApplications((apps) => apps.map((app) => (app.id === applicationId ? { ...app, is_finalist: isFinalist } : app)))
+  }, [])
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-white">
@@ -106,10 +113,11 @@ export function AdminDashboard({ initialApplications, initialTimeSlots, initialS
         )}
 
         <Tabs defaultValue="applications" className="space-y-6">
-          <TabsList className="grid w-full max-w-2xl grid-cols-2 sm:grid-cols-4">
+          <TabsList className="grid w-full max-w-3xl grid-cols-2 sm:grid-cols-5">
             <TabsTrigger value="applications">Candidatures</TabsTrigger>
             <TabsTrigger value="schedule">Créneaux</TabsTrigger>
             <TabsTrigger value="auditions">Mode Auditions</TabsTrigger>
+            <TabsTrigger value="results">Résultats</TabsTrigger>
             <TabsTrigger value="settings">Paramètres</TabsTrigger>
           </TabsList>
 
@@ -143,9 +151,21 @@ export function AdminDashboard({ initialApplications, initialTimeSlots, initialS
             />
           </TabsContent>
 
+          <TabsContent value="results">
+            <ResultsTab
+              applications={applications}
+              season={season}
+              smtpConfigured={smtpConfigured}
+              onFinalistChange={handleFinalistChange}
+              onRefresh={refreshApplications}
+            />
+          </TabsContent>
+
           <TabsContent value="settings" className="space-y-6">
             <SeasonSettings season={season} timeSlots={timeSlots} onSeasonChange={handleSeasonChange} onSlotsChange={refreshTimeSlots} />
             <SmtpSettings />
+            <EmailTemplatesPanel smtpConfigured={smtpConfigured} />
+            <RemindersPanel applications={applications} season={season} smtpConfigured={smtpConfigured} onRefresh={refreshApplications} />
             <EditionsPanel currentEdition={season.edition} />
           </TabsContent>
         </Tabs>

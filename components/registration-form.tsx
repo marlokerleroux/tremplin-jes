@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Plus, Trash2, FileText } from "lucide-react"
+import { Plus, Trash2, FileText, Save } from "lucide-react"
 import {
   GROUP_AVERAGE_MAX_AGE,
   GROUP_MEMBER_MAX_AGE,
@@ -33,6 +33,8 @@ interface GroupMember {
 }
 
 interface RegistrationFormProps {
+  /** Édition en cours : le brouillon local est propre à chaque édition. */
+  edition: number
   /** Date de référence pour le calcul de l'âge (AAAA-MM-JJ). */
   ageReferenceDate: string
   /** Dates d'audition proposées (AAAA-MM-JJ). */
@@ -40,10 +42,54 @@ interface RegistrationFormProps {
   venue: string
 }
 
-export function RegistrationForm({ ageReferenceDate, auditionDates, venue }: RegistrationFormProps) {
+interface DraftState {
+  savedAt: string
+  applicationType: ApplicationType
+  stageName: string
+  soloBirthDate: string
+  groupMembers: GroupMember[]
+  biography: string
+  musicalStyle: string
+  instagram: string
+  hasOriginalComposition: boolean
+  isSacemRegistered: boolean
+  allowsBroadcast: boolean
+  hasStageExperience: boolean
+  stageExperienceDetails: string
+  preferredAuditionDate: string
+}
+
+function draftKey(edition: number): string {
+  return `tremplin:candidature:${edition}`
+}
+
+function readDraft(edition: number): DraftState | null {
+  try {
+    const raw = window.localStorage.getItem(draftKey(edition))
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Partial<DraftState>
+    if (!parsed || typeof parsed !== "object" || typeof parsed.savedAt !== "string") return null
+    return parsed as DraftState
+  } catch {
+    return null
+  }
+}
+
+function writeDraft(edition: number, draft: DraftState | null): void {
+  try {
+    if (draft) window.localStorage.setItem(draftKey(edition), JSON.stringify(draft))
+    else window.localStorage.removeItem(draftKey(edition))
+  } catch {
+    // Stockage indisponible (navigation privée, quota) : le brouillon est simplement désactivé.
+  }
+}
+
+export function RegistrationForm({ edition, ageReferenceDate, auditionDates, venue }: RegistrationFormProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [draftRestoredAt, setDraftRestoredAt] = useState<string | null>(null)
+  const draftReady = useRef(false)
 
   // Form state
   const [applicationType, setApplicationType] = useState<ApplicationType>("solo")
@@ -65,6 +111,90 @@ export function RegistrationForm({ ageReferenceDate, auditionDates, venue }: Reg
   const [acceptedRules, setAcceptedRules] = useState(false)
 
   const refLabel = formatDateShortFr(ageReferenceDate)
+
+  // Brouillon local : restauré au chargement, puis enregistré à chaque modification (le règlement doit être ré-accepté).
+  useEffect(() => {
+    const draft = readDraft(edition)
+    if (draft) {
+      setApplicationType(draft.applicationType === "group" ? "group" : "solo")
+      setStageName(draft.stageName ?? "")
+      setSoloBirthDate(draft.soloBirthDate ?? "")
+      if (Array.isArray(draft.groupMembers) && draft.groupMembers.length >= 2) setGroupMembers(draft.groupMembers)
+      setBiography(draft.biography ?? "")
+      setMusicalStyle(draft.musicalStyle ?? "")
+      setInstagram(draft.instagram ?? "")
+      setHasOriginalComposition(Boolean(draft.hasOriginalComposition))
+      setIsSacemRegistered(Boolean(draft.isSacemRegistered))
+      setAllowsBroadcast(Boolean(draft.allowsBroadcast))
+      setHasStageExperience(Boolean(draft.hasStageExperience))
+      setStageExperienceDetails(draft.stageExperienceDetails ?? "")
+      setPreferredAuditionDate(auditionDates.includes(draft.preferredAuditionDate) ? draft.preferredAuditionDate : "")
+      setDraftRestoredAt(draft.savedAt)
+    }
+    draftReady.current = true
+  }, [edition, auditionDates])
+
+  useEffect(() => {
+    if (!draftReady.current) return
+    const hasContent = stageName || biography || musicalStyle || soloBirthDate || groupMembers.some((m) => m.firstName || m.lastName || m.birthDate)
+    if (!hasContent) return
+    const timer = window.setTimeout(() => {
+      writeDraft(edition, {
+        savedAt: new Date().toISOString(),
+        applicationType,
+        stageName,
+        soloBirthDate,
+        groupMembers,
+        biography,
+        musicalStyle,
+        instagram,
+        hasOriginalComposition,
+        isSacemRegistered,
+        allowsBroadcast,
+        hasStageExperience,
+        stageExperienceDetails,
+        preferredAuditionDate,
+      })
+    }, 500)
+    return () => window.clearTimeout(timer)
+  }, [
+    edition,
+    applicationType,
+    stageName,
+    soloBirthDate,
+    groupMembers,
+    biography,
+    musicalStyle,
+    instagram,
+    hasOriginalComposition,
+    isSacemRegistered,
+    allowsBroadcast,
+    hasStageExperience,
+    stageExperienceDetails,
+    preferredAuditionDate,
+  ])
+
+  const clearDraft = () => {
+    writeDraft(edition, null)
+    setDraftRestoredAt(null)
+    setApplicationType("solo")
+    setStageName("")
+    setSoloBirthDate("")
+    setGroupMembers([
+      { firstName: "", lastName: "", birthDate: "" },
+      { firstName: "", lastName: "", birthDate: "" },
+    ])
+    setBiography("")
+    setMusicalStyle("")
+    setInstagram("")
+    setHasOriginalComposition(false)
+    setIsSacemRegistered(false)
+    setAllowsBroadcast(false)
+    setHasStageExperience(false)
+    setStageExperienceDetails("")
+    setPreferredAuditionDate("")
+    setAcceptedRules(false)
+  }
 
   const addGroupMember = () => {
     setGroupMembers([...groupMembers, { firstName: "", lastName: "", birthDate: "" }])
@@ -132,6 +262,8 @@ export function RegistrationForm({ ageReferenceDate, auditionDates, venue }: Reg
         return
       }
 
+      // Candidature enregistrée : le brouillon local n'a plus lieu d'être.
+      writeDraft(edition, null)
       // Navigation complète pour recharger le tableau de bord avec la nouvelle candidature.
       window.location.assign("/dashboard")
     } catch (err) {
@@ -142,6 +274,17 @@ export function RegistrationForm({ ageReferenceDate, auditionDates, venue }: Reg
 
   return (
     <form onSubmit={handleSubmit} noValidate>
+      {draftRestoredAt && (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm" role="status">
+          <p className="flex items-center gap-2">
+            <Save className="h-4 w-4 text-primary" />
+            Brouillon restauré (enregistré le {new Date(draftRestoredAt).toLocaleString("fr-FR")}). Vos saisies sont conservées sur cet appareil jusqu&#39;à l&#39;envoi.
+          </p>
+          <Button type="button" variant="ghost" size="sm" onClick={clearDraft}>
+            Repartir de zéro
+          </Button>
+        </div>
+      )}
       <Card>
         <CardHeader>
           <CardTitle>Informations générales</CardTitle>

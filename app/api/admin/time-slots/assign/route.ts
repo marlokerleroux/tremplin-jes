@@ -5,7 +5,6 @@ import { assignSlotSchema } from "@/lib/validation/admin"
 import { formatZodError } from "@/lib/validation/common"
 import { getSeasonConfig, DEFAULT_VENUE } from "@/lib/season-config"
 import { sendTimeSlotAssignedEmail } from "@/lib/email/notifications"
-import { formatDateFr } from "@/lib/season"
 
 export async function POST(request: Request) {
   const authResult = await requireApiAdmin()
@@ -24,6 +23,7 @@ export async function POST(request: Request) {
         select: {
           id: true,
           edition: true,
+          stage_name: true,
           time_slot_id: true,
           profile: { select: { email: true, first_name: true, last_name: true } },
         },
@@ -54,14 +54,18 @@ export async function POST(request: Request) {
     const config = await getSeasonConfig()
     let emailSent = false
     if (config.is_validated) {
-      const result = await sendTimeSlotAssignedEmail(
-        outcome.application.profile.email,
-        outcome.application.profile.first_name,
-        outcome.application.profile.last_name,
-        formatDateFr(outcome.slot.date),
-        outcome.slot.start_time,
-        config.venue || DEFAULT_VENUE,
-      )
+      const result = await sendTimeSlotAssignedEmail({
+        applicationId: outcome.application.id,
+        email: outcome.application.profile.email,
+        firstName: outcome.application.profile.first_name,
+        lastName: outcome.application.profile.last_name,
+        stageName: outcome.application.stage_name,
+        edition: outcome.application.edition,
+        date: outcome.slot.date,
+        startTime: outcome.slot.start_time,
+        endTime: outcome.slot.end_time,
+        venue: config.venue || DEFAULT_VENUE,
+      })
       emailSent = result.success
     }
 
