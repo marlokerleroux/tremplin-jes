@@ -1,4 +1,5 @@
 import { getSiteUrl } from "@/lib/site-url"
+import { LOGO_CID } from "./logo"
 
 /** Échappe les valeurs interpolées dans le HTML des emails. */
 export function escapeHtml(value: string | number | null | undefined): string {
@@ -28,109 +29,102 @@ interface BaseEmailData {
   lastName: string
 }
 
-// Template de base avec le style du site
+// Charte graphique du tremplin : bandeau sombre avec le logo (blocs rose / bleu / jaune),
+// Montserrat, titres en capitales, bouton rose à angles droits comme sur le site vitrine.
+export const BRAND = {
+  blue: "#246BDC",
+  pink: "#E62785",
+  yellow: "#FFD00F",
+  dark: "#1B0B3B",
+  text: "#1F1235",
+  muted: "#6B6480",
+  background: "#F3F1F8",
+} as const
+
+const FONT_STACK = "'Montserrat', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+
+/** Bouton d'action principal (styles en ligne pour les messageries qui ignorent les feuilles de style). */
+export function ctaButton(url: string, label: string): string {
+  return `
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 28px 0;">
+      <tr>
+        <td style="background: ${BRAND.pink}; box-shadow: 4px 4px 0 ${BRAND.yellow};">
+          <a href="${escapeHtml(url)}" style="display: inline-block; padding: 14px 28px; font-family: ${FONT_STACK}; font-size: 14px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #ffffff; text-decoration: none;">${escapeHtml(label)}</a>
+        </td>
+      </tr>
+    </table>`
+}
+
+/** Encadré d'information (bordure bleue, fond clair). */
+export function infoBox(content: string): string {
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0;">
+      <tr>
+        <td style="background: #EEF3FC; border-left: 5px solid ${BRAND.blue}; padding: 16px 18px; font-family: ${FONT_STACK}; font-size: 15px; line-height: 1.6; color: ${BRAND.text};">${content}</td>
+      </tr>
+    </table>`
+}
+
+// Template de base avec la charte du site
 export function getEmailLayout(content: string): string {
+  const siteUrl = getSiteUrl()
   return `
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
   <title>Tremplin Jeunes en Scène</title>
   <style>
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, rgba(36, 107, 220, 0.1) 0%, rgba(255, 255, 255, 1) 50%, rgba(230, 39, 133, 0.1) 100%);
-    }
-    .container {
-      max-width: 600px;
-      margin: 40px auto;
-      background: white;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-    .header {
-      background: linear-gradient(135deg, #246BDC 0%, #E62785 100%);
-      padding: 40px 20px;
-      text-align: center;
-    }
-    .logo {
-      max-width: 250px;
-      height: auto;
-      margin-bottom: 20px;
-    }
-    .header-title {
-      color: white;
-      font-size: 24px;
-      font-weight: bold;
-      margin: 0;
-    }
-    .content {
-      padding: 40px 30px;
-      color: #000000;
-      line-height: 1.6;
-    }
-    .content h2 {
-      color: #246BDC;
-      font-size: 20px;
-      margin-top: 0;
-    }
-    .button {
-      display: inline-block;
-      padding: 12px 30px;
-      background: #246BDC;
-      color: white;
-      text-decoration: none;
-      border-radius: 8px;
-      font-weight: bold;
-      margin: 20px 0;
-    }
-    .button:hover {
-      background: #1d5ab8;
-    }
-    .info-box {
-      background: rgba(36, 107, 220, 0.05);
-      border-left: 4px solid #246BDC;
-      padding: 15px;
-      margin: 20px 0;
-      border-radius: 4px;
-    }
-    .footer {
-      background: #f5f5f5;
-      padding: 30px;
-      text-align: center;
-      color: #666;
-      font-size: 14px;
-    }
-    .footer-logo {
-      color: #246BDC;
-      font-weight: bold;
-      font-size: 16px;
-      margin-bottom: 10px;
-    }
-    .footer-org {
-      color: #E62785;
-      font-weight: 600;
-      margin-top: 5px;
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;800&display=swap');
+    body { margin: 0; padding: 0; background: ${BRAND.background}; }
+    .content h2 { font-family: ${FONT_STACK}; font-size: 24px; line-height: 1.2; font-weight: 800; text-transform: uppercase; color: ${BRAND.blue}; margin: 0 0 18px 0; }
+    .content p { margin: 0 0 16px 0; }
+    .content ol, .content ul { margin: 0 0 16px 0; padding-left: 22px; }
+    .content li { margin-bottom: 6px; }
+    .content a { color: ${BRAND.blue}; }
+    @media only screen and (max-width: 620px) {
+      .container { width: 100% !important; }
+      .content-cell { padding: 28px 20px !important; }
     }
   </style>
 </head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1 class="header-title">Tremplin Jeunes en Scène</h1>
-    </div>
-    <div class="content">
-      ${content}
-    </div>
-    <div class="footer">
-      <div class="footer-logo">Tremplin Jeunes en Scène</div>
-      <div class="footer-org">Organisé par Pass'Musique</div>
-    </div>
-  </div>
+<body style="margin: 0; padding: 0; background: ${BRAND.background};">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background: ${BRAND.background};">
+    <tr>
+      <td align="center" style="padding: 32px 12px;">
+        <table role="presentation" class="container" width="600" cellpadding="0" cellspacing="0" border="0" style="width: 600px; max-width: 100%; background: #ffffff;">
+          <tr>
+            <td align="center" style="background: ${BRAND.dark}; padding: 32px 24px 28px 24px;">
+              <a href="${siteUrl}" style="text-decoration: none;">
+                <img src="cid:${LOGO_CID}" alt="Tremplin Jeunes en Scène" width="260" height="107" style="display: block; width: 260px; max-width: 100%; height: auto; border: 0;">
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td style="background: ${BRAND.yellow}; height: 6px; line-height: 6px; font-size: 6px;">&nbsp;</td>
+          </tr>
+          <tr>
+            <td class="content-cell content" style="padding: 36px 40px; font-family: ${FONT_STACK}; font-size: 16px; line-height: 1.6; color: ${BRAND.text};">
+              ${content}
+            </td>
+          </tr>
+          <tr>
+            <td style="background: ${BRAND.dark}; padding: 24px 40px; font-family: ${FONT_STACK}; font-size: 13px; line-height: 1.6; color: #C9C2DD;">
+              <p style="margin: 0 0 4px 0; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #ffffff;">Tremplin Jeunes en Scène</p>
+              <p style="margin: 0 0 12px 0; color: ${BRAND.yellow}; font-weight: 700;">Organisé par Pass'Musique</p>
+              <p style="margin: 0;">
+                <a href="${siteUrl}" style="color: #ffffff; text-decoration: underline;">Espace candidat</a>
+                &nbsp;·&nbsp;
+                <a href="https://www.tremplin-jeunes-en-scene.fr" style="color: #ffffff; text-decoration: underline;">Site du tremplin</a>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>
   `
@@ -142,15 +136,13 @@ export function getWelcomeEmail(data: BaseEmailData & { verifyUrl: string }): Em
     <h2>Bienvenue ${escapeHtml(data.firstName)} !</h2>
     <p>Votre compte a été créé avec succès. Nous sommes ravis de vous accueillir pour le Tremplin Jeunes en Scène !</p>
 
-    <div class="info-box">
+    ${infoBox(`
       <strong>Dernière étape : confirmez votre adresse email</strong><br>
       Cliquez sur le bouton ci-dessous pour vérifier votre adresse. C'est indispensable pour déposer votre candidature
       et recevoir votre convocation.
-    </div>
+    `)}
 
-    <a href="${escapeHtml(data.verifyUrl)}" class="button">
-      Confirmer mon adresse email
-    </a>
+    ${ctaButton(data.verifyUrl, "Confirmer mon adresse email")}
 
     <p style="color: #666; font-size: 14px;">
       Si le bouton ne fonctionne pas, copiez-collez ce lien dans votre navigateur :<br>
@@ -183,18 +175,16 @@ export function getVerificationEmail(data: BaseEmailData & { verifyUrl: string }
     <p>Bonjour ${escapeHtml(data.firstName)},</p>
     <p>Cliquez sur le bouton ci-dessous pour confirmer votre adresse email et accéder au dépôt de candidature.</p>
 
-    <a href="${escapeHtml(data.verifyUrl)}" class="button">
-      Confirmer mon adresse email
-    </a>
+    ${ctaButton(data.verifyUrl, "Confirmer mon adresse email")}
 
     <p style="color: #666; font-size: 14px;">
       Si le bouton ne fonctionne pas, copiez-collez ce lien dans votre navigateur :<br>
       <a href="${escapeHtml(data.verifyUrl)}" style="color: #246BDC;">${escapeHtml(data.verifyUrl)}</a>
     </p>
 
-    <div class="info-box">
+    ${infoBox(`
       Si vous n'êtes pas à l'origine de cette demande, ignorez simplement cet email.
-    </div>
+    `)}
   `
 
   return {
@@ -208,12 +198,10 @@ export function getVerificationEmail(data: BaseEmailData & { verifyUrl: string }
 export function getAdminNotificationEmail(data: { title: string; lines: string[]; adminUrl: string }): EmailTemplate {
   const content = `
     <h2>${escapeHtml(data.title)}</h2>
-    <div class="info-box">
+    ${infoBox(`
       ${data.lines.map((line) => `<p style="margin: 4px 0;">${escapeHtml(line)}</p>`).join("\n")}
-    </div>
-    <a href="${escapeHtml(data.adminUrl)}" class="button">
-      Ouvrir l'administration
-    </a>
+    `)}
+    ${ctaButton(data.adminUrl, "Ouvrir l'administration")}
   `
 
   return {
@@ -230,16 +218,14 @@ export function getApplicationSubmittedEmail(data: BaseEmailData & { application
     <p>Bonjour ${escapeHtml(data.firstName)},</p>
     <p>Nous avons bien reçu votre candidature ${data.applicationType === "solo" ? "en tant qu'<strong>artiste solo</strong>" : "en tant que <strong>groupe</strong>"}.</p>
     
-    <div class="info-box">
+    ${infoBox(`
       <strong>Votre dossier est en cours de traitement</strong><br>
       Notre équipe va examiner votre candidature. Vous recevrez une notification dès que votre dossier sera validé.
-    </div>
+    `)}
     
     <p><strong>N'oubliez pas :</strong> Vous devez encore envoyer votre fiche technique pour finaliser votre candidature.</p>
     
-    <a href="${getSiteUrl()}/technical-sheet" class="button">
-      Envoyer ma fiche technique
-    </a>
+    ${ctaButton(`${getSiteUrl()}/technical-sheet`, "Envoyer ma fiche technique")}
     
     <p style="margin-top: 30px; color: #666; font-size: 14px;">
       Vous pouvez suivre l'avancement de votre candidature depuis votre espace personnel.
@@ -260,18 +246,16 @@ export function getTechnicalSheetSubmittedEmail(data: BaseEmailData): EmailTempl
     <p>Bonjour ${escapeHtml(data.firstName)},</p>
     <p>Nous avons bien reçu votre fiche technique.</p>
     
-    <div class="info-box">
+    ${infoBox(`
       <strong>Merci !</strong><br>
       Notre équipe va examiner votre fiche technique. Vérifiez sur votre espace candidat que tous les documents
       demandés (par exemple une autorisation parentale pour les mineurs) sont bien fournis : vous recevrez une
       notification dès que votre candidature sera validée.
-    </div>
+    `)}
     
     <p>Vous pouvez consulter l'état de votre candidature à tout moment depuis votre espace personnel.</p>
     
-    <a href="${getSiteUrl()}/dashboard" class="button">
-      Voir mon dossier
-    </a>
+    ${ctaButton(`${getSiteUrl()}/dashboard`, "Voir mon dossier")}
   `
 
   return {
@@ -290,14 +274,12 @@ export function getPasswordResetEmail(
     <p>Bonjour ${escapeHtml(data.firstName)},</p>
     <p>Vous avez demandé la réinitialisation de votre mot de passe.</p>
 
-    <div class="info-box">
+    ${infoBox(`
       <strong>Ce lien est valable 1 heure.</strong><br>
       Si vous n'avez pas demandé cette réinitialisation, ignorez simplement cet email.
-    </div>
+    `)}
 
-    <a href="${escapeHtml(data.resetUrl)}" class="button">
-      Réinitialiser mon mot de passe
-    </a>
+    ${ctaButton(data.resetUrl, "Réinitialiser mon mot de passe")}
 
     <p style="margin-top: 30px; color: #666; font-size: 14px;">
       Si le bouton ne fonctionne pas, copiez-collez ce lien dans votre navigateur :<br>

@@ -4,6 +4,7 @@ import { renderStoredTemplate } from "@/lib/email/template-store"
 import { PREVIEW_VARIABLES } from "@/lib/email/editable-templates"
 import { emailTemplateSchema } from "@/lib/validation/results"
 import { formatZodError } from "@/lib/validation/common"
+import { LOGO_CID, LOGO_PNG_BASE64 } from "@/lib/email/logo"
 
 /** Aperçu d'un modèle (non enregistré) avec des données d'exemple. */
 export async function POST(request: Request) {
@@ -15,5 +16,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: formatZodError(parsed.error) }, { status: 400 })
   }
   const rendered = renderStoredTemplate(parsed.data, PREVIEW_VARIABLES)
-  return NextResponse.json({ subject: rendered.subject, text: rendered.text, html: rendered.html })
+  // L'aperçu s'affiche dans un iframe : le logo inline (cid:) est remplacé par sa version encodée.
+  const html = rendered.html.replace(`cid:${LOGO_CID}`, `data:image/png;base64,${LOGO_PNG_BASE64}`)
+  return NextResponse.json({ subject: rendered.subject, text: rendered.text, html })
 }

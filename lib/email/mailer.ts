@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer"
-import type { EmailTemplate } from "./templates"
+import { getEmailLayout, infoBox, type EmailTemplate } from "./templates"
+import { LOGO_CID, LOGO_FILENAME, LOGO_PNG_BASE64 } from "./logo"
 
 export interface SMTPConfig {
   smtp_host: string
@@ -26,6 +27,20 @@ export function createTransport(smtpConfig: SMTPConfig) {
   })
 }
 
+/** Pièce jointe inline du logo, ajoutée dès que le HTML y fait référence (cid:). */
+function inlineLogoAttachment(html: string) {
+  if (!html.includes(`cid:${LOGO_CID}`)) return []
+  return [
+    {
+      filename: LOGO_FILENAME,
+      content: Buffer.from(LOGO_PNG_BASE64, "base64"),
+      contentType: "image/png",
+      cid: LOGO_CID,
+      contentDisposition: "inline" as const,
+    },
+  ]
+}
+
 export async function sendEmail(
   to: string | string[],
   template: EmailTemplate,
@@ -39,7 +54,10 @@ export async function sendEmail(
       subject: template.subject,
       text: template.text,
       html: template.html,
-      attachments: template.attachments?.map((a) => ({ filename: a.filename, content: a.content, contentType: a.contentType })),
+      attachments: [
+        ...inlineLogoAttachment(template.html),
+        ...(template.attachments ?? []).map((a) => ({ filename: a.filename, content: a.content, contentType: a.contentType })),
+      ],
     })
     return { success: true }
   } catch (error) {
@@ -56,23 +74,19 @@ export async function sendTestEmail(smtpConfig: SMTPConfig): Promise<{ success: 
   try {
     const transporter = createTransport(smtpConfig)
     await transporter.verify()
+    const html = getEmailLayout(`
+      <h2>Test de configuration SMTP</h2>
+      <p>Ceci est un email de test pour vérifier la configuration SMTP.</p>
+      ${infoBox("Si vous recevez ce message, votre configuration est correcte et les emails aux candidats peuvent être envoyés.")}
+      <p style="color: #6B6480; font-size: 14px;">Email envoyé automatiquement depuis l'administration.</p>
+    `)
     await transporter.sendMail({
       from: { name: smtpConfig.smtp_from_name, address: smtpConfig.smtp_from_email },
       to: smtpConfig.smtp_from_email,
       subject: "Test de configuration SMTP - Tremplin Jeunes en Scène",
       text: "Ceci est un email de test pour vérifier la configuration SMTP. Si vous recevez ce message, votre configuration est correcte.",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #246BDC;">Test de configuration SMTP</h2>
-          <p>Ceci est un email de test pour vérifier la configuration SMTP.</p>
-          <p>Si vous recevez ce message, votre configuration est correcte et vous pouvez commencer à envoyer des notifications aux candidats.</p>
-          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-          <p style="color: #666; font-size: 12px;">
-            Tremplin Jeunes en Scène<br>
-            Email envoyé automatiquement, merci de ne pas répondre.
-          </p>
-        </div>
-      `,
+      html,
+      attachments: inlineLogoAttachment(html),
     })
     return { success: true, message: `Email de test envoyé avec succès à ${smtpConfig.smtp_from_email}` }
   } catch (error) {
