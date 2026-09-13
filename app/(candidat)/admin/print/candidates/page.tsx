@@ -74,13 +74,13 @@ function CandidateSheet({ application, ageReferenceDate, venue }: { application:
 
       <section className="mb-4">
         <h2 className="text-sm font-bold uppercase tracking-wide text-gray-600 mb-1">Biographie</h2>
-        <p className="text-sm leading-snug whitespace-pre-wrap">{application.biography}</p>
+        <p className="text-sm leading-snug whitespace-pre-wrap break-words">{application.biography}</p>
       </section>
 
       {application.has_stage_experience && application.stage_experience_details && (
         <section className="mb-4">
           <h2 className="text-sm font-bold uppercase tracking-wide text-gray-600 mb-1">Expérience scénique</h2>
-          <p className="text-sm leading-snug whitespace-pre-wrap">{application.stage_experience_details}</p>
+          <p className="text-sm leading-snug whitespace-pre-wrap break-words">{application.stage_experience_details}</p>
         </section>
       )}
 

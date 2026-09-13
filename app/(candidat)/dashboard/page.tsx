@@ -216,9 +216,9 @@ export default async function DashboardPage() {
             {/* Status Card */}
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <CardTitle>Statut de votre candidature</CardTitle>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {getStatusBadge(application.status)}
                     {application.status !== "validated" && <DeleteApplicationButton />}
                   </div>
@@ -267,10 +267,10 @@ export default async function DashboardPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between py-3 border-b last:border-b-0">
-                  <div className="flex items-center gap-3 flex-1">
-                    <FileText className="h-5 w-5 text-muted-foreground" />
-                    <div className="flex-1">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-3 border-b last:border-b-0">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+                    <div className="flex-1 min-w-0">
                       <p className="font-medium">Fiche technique</p>
                       <p className="text-sm text-muted-foreground">
                         {hasTechnicalSheet ? (
@@ -283,7 +283,7 @@ export default async function DashboardPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 shrink-0 sm:justify-end">
                     {hasTechnicalSheet ? (
                       <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                         Envoyée
@@ -316,10 +316,10 @@ export default async function DashboardPage() {
                       : `Autorisation parentale - ${member.firstName} ${member.lastName}`
 
                   return (
-                    <div key={member.index} className="flex items-center justify-between py-3 border-b last:border-b-0">
-                      <div className="flex items-center gap-3 flex-1">
-                        <FileText className="h-5 w-5 text-muted-foreground" />
-                        <div className="flex-1">
+                    <div key={member.index} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-3 border-b last:border-b-0">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+                        <div className="flex-1 min-w-0">
                           <p className="font-medium">{memberName}</p>
                           <p className="text-sm text-muted-foreground">
                             {memberAuth ? (
@@ -337,7 +337,7 @@ export default async function DashboardPage() {
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 shrink-0 sm:justify-end">
                         {memberAuth ? (
                           <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                             Envoyée
@@ -367,7 +367,7 @@ export default async function DashboardPage() {
             </Card>
 
             {/* Application Details */}
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid md:grid-cols-2 gap-6 min-w-0 [&>*]:min-w-0">
               {/* General Info */}
               <Card>
                 <CardHeader>
@@ -456,7 +456,7 @@ export default async function DashboardPage() {
                   <CardTitle>Biographie</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{application.biography}</p>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{application.biography}</p>
                 </CardContent>
               </Card>
 
@@ -467,7 +467,7 @@ export default async function DashboardPage() {
                     <CardTitle>Expérience scénique</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{application.stage_experience_details}</p>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{application.stage_experience_details}</p>
                   </CardContent>
                 </Card>
               )}
