@@ -13,15 +13,11 @@ export async function GET(request: Request) {
 
   try {
     const seasonConfig = await getSeasonConfig()
+    const config = await getVitrineConfig()
     const raw = new URL(request.url).searchParams.get("edition")
-    const requested = raw ? Number.parseInt(raw, 10) : seasonConfig.edition
+    const requested = raw ? Number.parseInt(raw, 10) : (config.edition ?? seasonConfig.edition)
     const editionNumber = Number.isInteger(requested) ? requested : seasonConfig.edition
-    const [config, edition, editions, partners] = await Promise.all([
-      getVitrineConfig(),
-      getVitrineEdition(editionNumber),
-      listVitrineEditions(),
-      listPartners(false),
-    ])
+    const [edition, editions, partners] = await Promise.all([getVitrineEdition(editionNumber), listVitrineEditions(), listPartners(false)])
     return NextResponse.json({
       config,
       season: serializeSeasonConfig(seasonConfig),

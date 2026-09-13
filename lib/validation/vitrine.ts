@@ -25,6 +25,7 @@ const imagePath = z
 
 export const vitrineConfigSchema = z.object({
   mode: z.enum(VITRINE_MODES, "Mode inconnu"),
+  edition: z.coerce.number("Édition invalide").int().min(2000).max(2100).nullish().transform((v) => v ?? null),
   banner_enabled: z.boolean().default(false),
   banner_text: optionalText(300),
   banner_url: optionalUrl,

@@ -129,6 +129,28 @@ function GeneralSettings({ data, onSaved }: { data: VitrineAdminResponse; onSave
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
+            <Label htmlFor="displayed-edition">Édition affichée (modes finale et après la finale)</Label>
+            <Select value={form.edition ? String(form.edition) : "season"} onValueChange={(value) => setForm({ ...form, edition: value === "season" ? null : Number(value) })}>
+              <SelectTrigger id="displayed-edition">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="season">Saison en cours ({season.edition})</SelectItem>
+                {Array.from(new Set([season.edition, season.edition + 1, ...data.editions.map((e) => e.edition)]))
+                  .sort((a, b) => b - a)
+                  .map((edition) => (
+                    <SelectItem key={edition} value={String(edition)}>
+                      Édition {edition}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Permet de garder la finale précédente en ligne après l&#39;ouverture de la saison suivante.</p>
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
             <Label htmlFor="preseason-text">Accroche avant-ouverture</Label>
             <Textarea id="preseason-text" rows={3} maxLength={1000} value={form.preseason_text} onChange={(e) => setForm({ ...form, preseason_text: e.target.value })} placeholder="Texte par défaut si vide." />
           </div>

@@ -231,6 +231,8 @@ model VitrineConfig {
   id              String   @id @default(uuid()) @db.Uuid
   // "preseason" | "auditions" | "finale" | "aftermath"
   mode            String   @default("finale")
+  // Édition affichée en modes finale / après la finale (null = édition de la saison en cours).
+  edition         Int?
   banner_enabled  Boolean  @default(false)
   banner_text     String?
   banner_url      String?

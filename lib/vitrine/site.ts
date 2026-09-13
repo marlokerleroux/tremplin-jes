@@ -14,6 +14,8 @@ export const VITRINE_SITE_URL = "https://www.tremplin-jeunes-en-scene.fr"
 
 export interface VitrineConfigDTO {
   mode: VitrineMode
+  /** Édition affichée en modes finale / après la finale (null = saison en cours). */
+  edition: number | null
   banner_enabled: boolean
   banner_text: string
   banner_url: string
@@ -54,9 +56,9 @@ export interface PartnerDTO {
 export interface VitrineData {
   config: VitrineConfigDTO
   season: SeasonConfigDTO
-  /** Édition mise en avant (édition de la saison en cours). */
+  /** Édition mise en avant : celle choisie dans l'administration, sinon la saison en cours. */
   edition: VitrineEditionDTO
-  /** Éditions passées avec un palmarès, de la plus récente à la plus ancienne. */
+  /** Éditions passées avec un palmarès (hors édition mise en avant en modes finale / après-finale), de la plus récente à la plus ancienne. */
   palmares: VitrineEditionDTO[]
   partners: PartnerDTO[]
 }
@@ -97,7 +99,7 @@ function toEditionDTO(row: EditionRow): VitrineEditionDTO {
   }
 }
 
-const DEFAULT_CONFIG: VitrineConfigDTO = { mode: "finale", banner_enabled: false, banner_text: "", banner_url: "", auditions_intro: "", preseason_text: "" }
+const DEFAULT_CONFIG: VitrineConfigDTO = { mode: "finale", edition: null, banner_enabled: false, banner_text: "", banner_url: "", auditions_intro: "", preseason_text: "" }
 
 /** Configuration du site (valeurs par défaut si la ligne n'existe pas encore ; créée à l'enregistrement). */
 export async function getVitrineConfig(): Promise<VitrineConfigDTO> {
@@ -105,6 +107,7 @@ export async function getVitrineConfig(): Promise<VitrineConfigDTO> {
   if (!row) return DEFAULT_CONFIG
   return {
     mode: isVitrineMode(row.mode) ? row.mode : "finale",
+    edition: row.edition,
     banner_enabled: row.banner_enabled,
     banner_text: row.banner_text ?? "",
     banner_url: row.banner_url ?? "",
@@ -136,10 +139,16 @@ export async function listPartners(onlyActive: boolean): Promise<PartnerDTO[]> {
   return rows.map((p) => ({ id: p.id, name: p.name, logo_url: p.logo_url, url: p.url ?? "", position: p.position, is_active: p.is_active }))
 }
 
+function hasPalmares(e: VitrineEditionDTO): boolean {
+  return Boolean(e.jury_winner || e.public_winner || e.finalists.length > 0)
+}
+
 async function loadVitrineData(): Promise<VitrineData> {
   const [config, seasonConfig, partners] = await Promise.all([getVitrineConfig(), getSeasonConfig(), listPartners(true)])
-  const [edition, editions] = await Promise.all([getVitrineEdition(seasonConfig.edition), listVitrineEditions()])
-  const palmares = editions.filter((e) => e.edition < seasonConfig.edition && (e.jury_winner || e.public_winner || e.finalists.length > 0))
+  const displayedEdition = config.edition ?? seasonConfig.edition
+  const [edition, editions] = await Promise.all([getVitrineEdition(displayedEdition), listVitrineEditions()])
+  const showsEdition = config.mode === "finale" || config.mode === "aftermath"
+  const palmares = editions.filter((e) => hasPalmares(e) && e.edition < seasonConfig.edition && !(showsEdition && e.edition === displayedEdition))
   return { config, season: serializeSeasonConfig(seasonConfig), edition, palmares, partners }
 }
 

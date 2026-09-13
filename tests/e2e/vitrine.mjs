@@ -48,9 +48,12 @@ try {
   const settings = await (await page.request.get(`${BASE}/api/admin/vitrine?edition=2026`)).json()
   check("admin : réglages chargés", settings.config?.mode === "finale" && settings.edition?.finalists?.length === 6 && settings.partners?.length === 16, JSON.stringify({ mode: settings.config?.mode, f: settings.edition?.finalists?.length, p: settings.partners?.length }))
   check("admin : lauréats 2026 initialisés", settings.edition?.jury_winner === "Starfish" && settings.edition?.public_winner === "Cyel")
+  check("admin : édition affichée initialisée à 2026", settings.config?.edition === 2026, String(settings.config?.edition))
 
-  // --- Saison 2027 ouverte (dates) puis mode auditions
+  // --- Saison 2027 ouverte (dates) : le site en mode finale continue d'afficher la finale 2026
   sql("UPDATE schedule_config SET edition=2027, registration_opens_at='2026-09-01', registration_closes_at='2026-12-31 23:00', audition_dates=ARRAY['2027-01-30','2027-01-31'], venue='Espace Léo Ferré, Brest'")
+  const stillFinale = vitrine("/")
+  check("vitrine : la finale 2026 reste affichée après ouverture de la saison 2027", /Finale 2026<\/title>/.test(stillFinale) && /13 mai 2026/.test(stillFinale) && /Starfish/.test(stillFinale) && !/Palmarès 2026/.test(stillFinale), settings.config?.edition)
   const rBadMode = await page.request.put(`${BASE}/api/admin/vitrine`, { data: { mode: "carnaval" } })
   check("admin : mode inconnu refusé → 400", rBadMode.status() === 400)
   const rAud = await page.request.put(`${BASE}/api/admin/vitrine`, { data: { mode: "auditions", banner_enabled: true, banner_text: "Live des résultats samedi !", banner_url: "https://instagram.com/tremplin", auditions_intro: "Texte d'intro personnalisé." } })
@@ -101,10 +104,10 @@ try {
     },
   })
   check("admin : édition 2027 enregistrée", rEd.status() === 200, String(rEd.status()))
-  await page.request.put(`${BASE}/api/admin/vitrine`, { data: { mode: "finale", banner_enabled: false } })
+  await page.request.put(`${BASE}/api/admin/vitrine`, { data: { mode: "finale", edition: 2027, banner_enabled: false } })
   const fin = vitrine("/")
   check("vitrine finale 2027 : date, billetterie, finalistes", /12 mai 2027/.test(fin) && /billetweb\.fr\/finale-2027/.test(fin) && /Les Embruns/.test(fin) && /à partir de 8 €/.test(fin))
-  await page.request.put(`${BASE}/api/admin/vitrine`, { data: { mode: "aftermath", banner_enabled: false } })
+  await page.request.put(`${BASE}/api/admin/vitrine`, { data: { mode: "aftermath", edition: 2027, banner_enabled: false } })
   const after = vitrine("/")
   check("vitrine après-finale : lauréats et remerciements", /Merci !/.test(after) && /Bravo à Les Embruns/.test(after) && /Merci à toutes et à tous !/.test(after) && /youtube\.com\/embed\/t-jooYuxiWI/.test(after))
   // Le HTML est diffusé en flux (l'ordre des fragments ne suit pas l'ordre visuel) : l'ordre se vérifie dans le DOM de l'aperçu.
