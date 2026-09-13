@@ -456,7 +456,7 @@ export default async function DashboardPage() {
                   <CardTitle>Biographie</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{application.biography}</p>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-anywhere">{application.biography}</p>
                 </CardContent>
               </Card>
 
@@ -467,7 +467,7 @@ export default async function DashboardPage() {
                     <CardTitle>Expérience scénique</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{application.stage_experience_details}</p>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-anywhere">{application.stage_experience_details}</p>
                   </CardContent>
                 </Card>
               )}

@@ -14,6 +14,8 @@ pnpm build        # prisma generate + next build (TypeScript errors fail the bui
 pnpm typecheck    # tsc --noEmit
 pnpm lint         # ESLint (flat config, eslint.config.mjs)
 pnpm test         # Vitest unit tests (lib/**/*.test.ts)
+tests/e2e/run.sh scenario         # Local end-to-end scenario (Postgres + fake SMTP + Playwright, see tests/e2e/run.sh)
+tests/e2e/run.sh mobile-audit DIR # Mobile (390px) overflow audit of every page with long data, screenshots in DIR
 pnpm db:migrate   # prisma migrate deploy
 pnpm db:seed      # tsx prisma/seed.ts (requires SEED_ADMIN_PASSWORD)
 pnpm start        # Start production server
@@ -127,6 +129,11 @@ SMTP configuration is stored in the `smtp_config` database table, not in env var
 - Vitrine layout (`app/vitrine/layout.tsx`): `robots: { index: true, follow: true }`
 - Espace candidat layout (`app/(candidat)/layout.tsx`): `robots: { index: false, follow: false }`
 - Legal & privacy pages: `robots: { index: false, follow: false }`
+
+## UI rules
+
+- The candidate/admin layout (`app/(candidat)/layout.tsx`) sets `overflow-wrap: anywhere`; dialogs are portaled outside it, so give `DialogContent` the `[overflow-wrap:anywhere]` class. For free text use `wrap-anywhere` (not `break-words`, which does not shrink min-content inside grids/flex).
+- Every page must render without horizontal overflow at 390px: run the mobile audit after UI changes.
 
 ## Build Notes
 

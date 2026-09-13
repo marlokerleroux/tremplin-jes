@@ -164,15 +164,15 @@ export function TechnicalSheetUpload({ applicationId, existingUrl, applicationSt
                   type="file"
                   accept="application/pdf"
                   onChange={handleFileChange}
-                  className="flex-1 text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#246BDC] file:text-white hover:file:bg-[#1d5ab8] file:cursor-pointer"
+                  className="flex-1 min-w-0 w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#246BDC] file:text-white hover:file:bg-[#1d5ab8] file:cursor-pointer"
                 />
               </div>
 
               {file && (
                 <div className="p-3 bg-blue-50 rounded-lg flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-[#246BDC]" />
-                    <span className="text-sm font-medium">{file.name}</span>
+                  <div className="flex items-start gap-2 min-w-0">
+                    <FileText className="h-4 w-4 text-[#246BDC] shrink-0 mt-0.5" />
+                    <span className="text-sm font-medium break-all">{file.name}</span>
                     <span className="text-xs text-gray-500">({(file.size / 1024 / 1024).toFixed(2)} Mo)</span>
                   </div>
                 </div>
@@ -194,7 +194,7 @@ export function TechnicalSheetUpload({ applicationId, existingUrl, applicationSt
                 </Alert>
               )}
 
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3">
                 <Button
                   onClick={handleUpload}
                   disabled={!file || uploading}

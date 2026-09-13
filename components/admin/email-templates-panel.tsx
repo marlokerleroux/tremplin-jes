@@ -215,7 +215,7 @@ export function EmailTemplatesPanel({ smtpConfigured }: { smtpConfigured: boolea
       </CardContent>
 
       <Dialog open={preview !== null} onOpenChange={(open) => !open && setPreview(null)}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto [overflow-wrap:anywhere]">
           <DialogHeader>
             <DialogTitle>Aperçu : {preview?.subject}</DialogTitle>
             <DialogDescription>Rendu avec des données d&#39;exemple.</DialogDescription>

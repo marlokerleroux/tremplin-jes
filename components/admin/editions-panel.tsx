@@ -164,7 +164,7 @@ export function EditionsPanel({ currentEdition }: { currentEdition: number }) {
       </CardContent>
 
       <Dialog open={purgeTarget !== null} onOpenChange={(open) => !open && setPurgeTarget(null)}>
-        <DialogContent>
+        <DialogContent className="[overflow-wrap:anywhere]">
           <DialogHeader>
             <DialogTitle>Purger définitivement l&#39;édition {purgeTarget?.edition} ?</DialogTitle>
             <DialogDescription>

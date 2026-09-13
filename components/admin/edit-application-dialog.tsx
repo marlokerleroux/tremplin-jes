@@ -91,7 +91,7 @@ export function EditApplicationDialog({
 
   return (
     <Dialog open={application !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto [overflow-wrap:anywhere]">
         <DialogHeader>
           <DialogTitle>Éditer la candidature</DialogTitle>
           <DialogDescription>Modifiez les informations de la candidature de {application?.stage_name}</DialogDescription>

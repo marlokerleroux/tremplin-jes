@@ -90,8 +90,8 @@ export function AdminDashboard({ initialApplications, initialTimeSlots, initialS
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-white">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+        <div className="container mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
             <Image src="/images/design-mode/logo_sans_fond.png" alt="Tremplin Jeunes en Scène" width={120} height={48} className="h-12 w-auto" />
             <div>
               <h1 className="text-2xl font-bold text-foreground">Administration</h1>
@@ -113,7 +113,7 @@ export function AdminDashboard({ initialApplications, initialTimeSlots, initialS
         )}
 
         <Tabs defaultValue="applications" className="space-y-6">
-          <TabsList className="grid w-full max-w-3xl grid-cols-2 sm:grid-cols-5">
+          <TabsList className="grid h-auto w-full max-w-3xl grid-cols-2 sm:grid-cols-5">
             <TabsTrigger value="applications">Candidatures</TabsTrigger>
             <TabsTrigger value="schedule">Créneaux</TabsTrigger>
             <TabsTrigger value="auditions">Mode Auditions</TabsTrigger>

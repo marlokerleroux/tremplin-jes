@@ -51,7 +51,7 @@ export function NoteDialog({
           {currentNote && <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full" />}
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="[overflow-wrap:anywhere]">
         <DialogHeader>
           <DialogTitle>Notes - {stageName}</DialogTitle>
           <DialogDescription>Notes de l&#39;organisateur pour ce candidat</DialogDescription>

@@ -56,7 +56,7 @@ export function UploadDialog({
 
   return (
     <Dialog open={target !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
+      <DialogContent className="[overflow-wrap:anywhere]">
         <DialogHeader>
           <DialogTitle>
             {target?.type === "technical" ? "Ajouter/Remplacer la fiche technique" : "Ajouter/Remplacer l'autorisation parentale"}

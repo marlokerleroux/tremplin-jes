@@ -27,7 +27,7 @@ export function ApplicationDetailsDialog({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto [overflow-wrap:anywhere]">
         <DialogHeader>
           <DialogTitle>{application.stage_name}</DialogTitle>
           <DialogDescription>Détails de la candidature · édition {application.edition}</DialogDescription>
@@ -116,7 +116,7 @@ export function ApplicationDetailsDialog({
 
           <section className="space-y-2">
             <h4 className="font-semibold">Biographie</h4>
-            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{application.biography}</p>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-anywhere">{application.biography}</p>
           </section>
 
           <section className="space-y-2">
@@ -143,7 +143,7 @@ export function ApplicationDetailsDialog({
           {application.has_stage_experience && application.stage_experience_details && (
             <section className="space-y-2">
               <h4 className="font-semibold">Détails de l&#39;expérience scénique</h4>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{application.stage_experience_details}</p>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-anywhere">{application.stage_experience_details}</p>
             </section>
           )}
 

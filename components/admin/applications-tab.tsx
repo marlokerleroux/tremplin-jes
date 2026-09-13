@@ -223,14 +223,14 @@ export function ApplicationsTab({
               </Select>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 mt-4">
+          <div className="flex flex-wrap gap-2 mt-4 [&>*]:max-w-full [&>*]:whitespace-normal [&>*]:h-auto">
             <Button onClick={exportToExcel} disabled={isExportingExcel} variant="outline" size="sm">
               <FileSpreadsheet className="h-4 w-4 mr-2" />
               {isExportingExcel ? "Export en cours..." : "Exporter en Excel"}
             </Button>
             <Button onClick={downloadAllTechnicalSheets} disabled={isDownloadingZip} variant="outline" size="sm">
               <FolderArchive className="h-4 w-4 mr-2" />
-              {isDownloadingZip ? "Téléchargement..." : "Télécharger toutes les fiches techniques (ZIP)"}
+              {isDownloadingZip ? "Téléchargement..." : "Toutes les fiches techniques (ZIP)"}
             </Button>
             <Button asChild variant="outline" size="sm">
               <a href={candidateSheetsUrl({ status: "validated" })} target="_blank" rel="noopener noreferrer">
