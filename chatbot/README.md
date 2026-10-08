@@ -103,11 +103,25 @@ Les conversations restent en mémoire dans l’onglet et disparaissent au rechar
 
 ## Index RAG sur Supabase
 
+Le corpus a été importé le 8 octobre 2026 dans le projet Supabase `passmusique-candidatures` : 7 documents, 19 passages, 19 vecteurs. Le backend local utilise désormais ce corpus via une fonction de lecture réservée au rôle serveur. La structure des 17 tables publiques préexistantes est restée identique avant/après l’import.
+
 Le dossier `supabase/` contient une migration indépendante du site Next.js. L’import crée uniquement le schéma privé `tremplin_chatbot` et ses tables `datasets`, `documents`, `chunks`. Il ne lance aucune migration Prisma, ne modifie pas les tables du site et n’écrase pas les versions précédentes. Chaque index possède un identifiant SHA-256 ; relancer le même import ne crée pas de doublons. Une erreur annule toute la transaction. Un schéma du même nom appartenant à une autre application bloque l’import.
 
-Les vecteurs de 1 536 dimensions sont stockés dans des tableaux PostgreSQL `real[]`, sans installer ni déplacer d’extension dans la base partagée. La recherche lexicale utilise l’index français PostgreSQL ; la similarité cosinus et la fusion des scores restent calculées par le backend, adaptées au petit corpus. Toutes les tables du chatbot ont RLS activé, sans accès accordé aux rôles API publics.
+Les vecteurs de 1 536 dimensions sont stockés dans des tableaux PostgreSQL `real[]`, sans installer ni déplacer d’extension dans la base partagée. La recherche lexicale utilise l’index français PostgreSQL ; la similarité cosinus et la fusion des scores restent calculées par le backend, adaptées au petit corpus. Toutes les tables du chatbot ont RLS activé, sans accès accordé aux rôles API publics. `supabase/read-index.sql` ajoute la fonction `public.tremplin_chatbot_read_index`, utilisable uniquement par `service_role` et le propriétaire. Elle ne lit que notre schéma privé et ne modifie aucune donnée.
 
 Créer un fichier `.env.supabase.local` exclu de Git avec `SUPABASE_DB_URL` (connexion PostgreSQL du projet) et `SUPABASE_CA_FILE=supabase/prod-ca-2021.crt`. Encoder les caractères spéciaux du mot de passe dans l’URL. La clé API `service_role` ne remplace pas ce mot de passe. Le certificat CA public inclus provient du [téléchargement officiel Supabase](https://supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt) ; la vérification TLS et du nom d’hôte restent activées. Les fichiers `.env` et `.env.supabase.local` ne doivent jamais être publiés.
+
+**Accès via un compte invité et l’éditeur SQL** : `node scripts/export-supabase-sql.mjs` produit `artifacts/supabase-initial-import.sql`, à exécuter une seule fois dans l’éditeur SQL du projet. Il contient uniquement les documents publics, leurs vecteurs, le nouveau schéma et sa fonction de lecture. Il refuse un schéma ou une fonction déjà présents ; aucun remplacement implicite. Le SQL a été vérifié sur une base PostgreSQL jetable avant exécution distante.
+
+Pour lire cet index sans mot de passe PostgreSQL, configurer côté serveur :
+
+```dotenv
+SUPABASE_TRANSPORT=rest
+SUPABASE_URL=https://VOTRE-PROJET.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=VOTRE_CLE_SERVEUR
+```
+
+Puis lancer `npm run start:supabase`. La clé publique `anon` n’a pas accès à la fonction. La clé serveur ne quitte jamais le backend. Ce mode a été utilisé pour ce projet partagé, dont le mot de passe PostgreSQL fourni a été refusé.
 
 ```sh
 npm run supabase:inspect  # Connexion et inventaire des structures, en lecture seule
@@ -133,4 +147,4 @@ Les visuels proviennent du site de l’association et de la référence fournie.
 
 ## Intégration au site parent
 
-Ce dossier est l’application indépendante du chatbot. Le site Next.js se trouve un niveau au-dessus et charge `widget.js` lorsque `NEXT_PUBLIC_CHATBOT_URL` est défini côté site. Chaque application s’installe et se construit dans son propre dossier. Les données RAG doivent être recréées avec `npm run refresh` sur une installation neuve, ou lues depuis Supabase après un import réussi. Aucun secret ni corpus local n’est inclus dans Git.
+Ce dossier est l’application indépendante du chatbot. Le site Next.js se trouve un niveau au-dessus et charge `widget.js` lorsque `NEXT_PUBLIC_CHATBOT_URL` est défini côté site. Chaque application s’installe et se construit dans son propre dossier. Les données RAG doivent être recréées avec `npm run refresh` sur une installation neuve, ou lues depuis Supabase après configuration. Aucun secret ni corpus local n’est inclus dans Git.

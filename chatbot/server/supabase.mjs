@@ -25,6 +25,19 @@ export function supabasePool() {
 export async function closeSupabase() { if (pool) { await pool.end(); pool = undefined; } }
 
 export async function remoteKnowledge(queryTerms = []) {
+  if (process.env.SUPABASE_TRANSPORT === 'rest') {
+    const url = new URL(process.env.SUPABASE_URL || 'https://invalid');
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (url.protocol !== 'https:' || !url.hostname.endsWith('.supabase.co') || !key) throw new Error('Configuration Supabase serveur manquante.');
+    const response = await fetch(`${url.origin}/rest/v1/rpc/tremplin_chatbot_read_index`, {
+      method: 'POST', headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query_terms: queryTerms.map(term => `${term}:*`).join(' | ') }), signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) { await response.body?.cancel(); throw new Error(`SUPABASE_${response.status}`); }
+    const result = await response.json();
+    if (!result?.chunks?.length) throw new Error('EMPTY_KNOWLEDGE');
+    return result;
+  }
   const connection = await supabasePool().connect();
   try {
     await connection.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
