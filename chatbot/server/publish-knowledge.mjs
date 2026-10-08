@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import { isDocumentReference } from './document-sources.mjs';
 
 const marker = 'Tremplin En coulisses RAG schema v1';
 export function prepareDataset(documents, chunks, meta) {
@@ -8,7 +9,7 @@ export function prepareDataset(documents, chunks, meta) {
   const allowed = new URL(meta.source).hostname;
   for (const document of documents) {
     const url = new URL(document.url);
-    if (url.protocol !== 'https:' || url.hostname !== allowed || !document.text || !document.hash) throw new Error('Document non public ou invalide.');
+    if (!((url.protocol === 'https:' && url.hostname === allowed) || isDocumentReference(document.url)) || !document.text || !document.hash) throw new Error('Source documentaire non autorisée ou invalide.');
   }
   const prepared = chunks.map((chunk, position) => {
     const embedding = JSON.parse(chunk.embedding);

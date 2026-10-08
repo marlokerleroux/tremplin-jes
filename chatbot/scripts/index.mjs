@@ -2,11 +2,11 @@ import { readFile,writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { db,metadata,stats } from '../server/db.mjs';
 import { config,dataDir } from '../server/config.mjs';
-import { hash,chunkText } from '../server/content.mjs';
+import { suppliedDocuments,documentChunks } from '../server/document-sources.mjs';
 import { embed } from '../server/provider.mjs';
-const docs=JSON.parse(await readFile(path.join(dataDir,'documents.json'),'utf8'));
+const docs=[...JSON.parse(await readFile(path.join(dataDir,'documents.json'),'utf8')), ...await suppliedDocuments()];
 const crawl=JSON.parse(await readFile(path.join(dataDir,'crawl-report.json'),'utf8'));
-const chunks=docs.flatMap(doc=>chunkText(doc.text).map((text,i)=>({id:hash(`${doc.url}:${doc.title}:${text}`),url:doc.url,title:doc.title,text,position:i})));
+const chunks=docs.flatMap(documentChunks);
 const old=new Map(db.prepare('SELECT id,embedding,embedding_model FROM chunks').all().map(x=>[x.id,x]));
 const missing=chunks.filter(x=>!old.get(x.id)?.embedding||old.get(x.id)?.embedding_model!==config.embedding);
 for(let i=0;i<missing.length;i+=24) {
