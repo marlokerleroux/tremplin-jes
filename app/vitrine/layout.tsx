@@ -2,6 +2,7 @@ import type React from "react"
 import type { Metadata } from "next"
 import { getVitrineData, VITRINE_SITE_URL, type VitrineData } from "@/lib/vitrine/site"
 import { VitrineFooter, VitrineHeader } from "@/components/vitrine/vitrine-site"
+import { VitrineChatbot } from "@/components/vitrine/chatbot"
 
 export const dynamic = "force-dynamic"
 
@@ -105,6 +106,7 @@ export default async function VitrineLayout({ children }: Readonly<{ children: R
       <VitrineHeader data={data} />
       <main>{children}</main>
       <VitrineFooter />
+      <VitrineChatbot />
     </div>
   )
 }
