@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "pnpm run build:chatbot && prisma generate && next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -12,7 +12,9 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
-    "build:vercel": "prisma migrate deploy && prisma generate && next build"
+    "build:vercel": "pnpm run build:chatbot && prisma migrate deploy && prisma generate && next build",
+    "build:chatbot": "node scripts/build-chatbot.mjs",
+    "predev": "pnpm run build:chatbot"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
@@ -56,7 +58,11 @@
     "tsx": "^4.23.13",
     "tw-animate-css": "1.3.3",
     "typescript": "^5.9.3",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.0",
+    "vite": "6.4.4",
+    "@vitejs/plugin-react": "4.7.0",
+    "@fontsource/montserrat": "5.3.0",
+    "react-markdown": "10.1.0"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

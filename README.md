@@ -30,44 +30,59 @@ pnpm test         # Tests unitaires (lib/season)
 pnpm build        # Build de production (prisma generate + next build)
 ```
 
-## Test local du chatbot En coulisses
+## Chatbot En coulisses sur Vercel
 
-Le widget est optionnel et apparaît sur le site vitrine lorsque `NEXT_PUBLIC_CHATBOT_URL` est défini. Il est isolé dans une iframe ; la clé OpenRouter est conservée exclusivement par son backend.
+La bulle est intégrée à la vitrine. Le build compile son interface isolée dans
+`public/chatbot/`, puis Next.js sert les réponses et les vocaux sous `/api/chatbot/`.
+Aucun serveur Express externe n'est nécessaire et `NEXT_PUBLIC_CHATBOT_URL` n'est
+plus utilisé. La bulle reste visible si la configuration IA manque et affiche alors
+un message d'indisponibilité lors de l'envoi.
 
-Pour la copie de travail de ce fork, `.env.local` contient une connexion à une base PostgreSQL dédiée sur `127.0.0.1:54329`, ainsi que :
+Dans **Vercel → Settings → Environment Variables → Production** :
 
-```dotenv
-LOCAL_SITE_MODE=vitrine
-NEXT_PUBLIC_CHATBOT_URL=http://127.0.0.1:3000
-```
+- `OPENROUTER_API_KEY` : clé privée OpenRouter, obligatoire pour répondre et transcrire.
+- `DATABASE_URL` : connexion Prisma du site, déjà nécessaire à l'application. Elle
+  sert aussi aux quotas du chatbot et peut lire le RAG via la fonction existante
+  `public.tremplin_chatbot_read_index(text)` du même projet Supabase.
+- Si la lecture du RAG doit passer par l'API Supabase : définir ensemble
+  `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY` côté serveur. Jamais de préfixe
+  `NEXT_PUBLIC_` pour une clé privée.
+- Facultatif : `CHAT_MODEL`, `EMBEDDING_MODEL`, `TRANSCRIPTION_MODEL`,
+  `DAILY_REQUEST_LIMIT` (300 demandes par jour par défaut).
 
-`LOCAL_SITE_MODE=vitrine` active la vitrine sur les hôtes locaux ; sans ce réglage, le comportement habituel de l’espace candidat est conservé. Utiliser **localhost** pour lancer Next.js : cela évite que sa normalisation d’URL traite une réécriture interne comme une redirection externe.
+Les quotas des messages et des vocaux sont communs et persistants, même avec
+plusieurs instances Vercel. Ils utilisent uniquement de nouvelles entrées
+`chatbot:v1:*` dans la table de limitation existante `rate_limit_hits` ; aucune
+migration ni modification des candidatures. Les adresses IP sont hachées avec
+une clé secrète et un sel journalier. Une erreur de quota bloque l'appel payant.
+Les textes des conversations et les enregistrements ne sont pas stockés.
+
+Après fusion et redéploiement, vérifier la bulle sur le **domaine vitrine**, puis
+`https://www.tremplin-jeunes-en-scene.fr/api/chatbot/health` : `ok: true`,
+`configured: true`, `storage: "supabase"`, avec le nombre de sources attendu.
+Le domaine candidat et l'adresse Vercel par défaut affichent l'espace candidat,
+qui ne contient pas le widget de la vitrine.
+
+### Test local
+
+Utiliser une base PostgreSQL locale dédiée dans `.env.local`,
+`LOCAL_SITE_MODE=vitrine` et la clé OpenRouter. Pour lire la documentation distante
+tout en conservant les écritures de quota en local, utiliser les deux variables
+Supabase REST ci-dessus dans le fichier local de secrets.
 
 ```bash
-# Dans chatbot/ : installer et configurer le backend séparément
-cd chatbot
-npm ci
-npm run build
-npm start
-
-# Dans un autre terminal, à la racine de ce dépôt : site vitrine
+pnpm install
 pnpm build
 pnpm start --hostname localhost --port 3001
 ```
 
-Ouvrir **http://localhost:3001**. Le backend du chatbot doit autoriser cette origine dans `ALLOWED_FRAME_ORIGINS`.
+Ouvrir **http://localhost:3001**. `pnpm dev` reconstruit aussi le widget au démarrage ;
+après une modification de `chatbot/src/`, relancer `pnpm build:chatbot`.
+Le serveur autonome dans `chatbot/` reste disponible pour le développement et
+l'indexation. Son code RAG et audio est partagé avec les routes Vercel.
 
-Les six migrations ont été appliquées uniquement à la base locale `tremplin_local`. Le script `node --env-file=.env.local tests/e2e/seed-local-preview.mjs` configure les dates publiques 2027 et conserve le palmarès 2026 inclus dans les migrations. Il refuse de s’exécuter sur une autre base. Aucun compte candidat ni accès à la base de production n’est nécessaire pour cet aperçu.
-
-Sur le Mac préparé pour cette copie, redémarrer PostgreSQL au besoin avec :
-
-```bash
-/usr/local/opt/postgresql@15/bin/pg_ctl -D .local/postgres -l .local/postgres.log -o "-h 127.0.0.1 -p 54329 -k $(pwd)/.local/postgres-socket" start
-```
-
-Les réglages, mots de passe et données sous `.env.local` et `.local/` sont exclus de Git. Pour une intégration hébergée ultérieure, remplacer `NEXT_PUBLIC_CHATBOT_URL` par l’origine HTTPS du backend, puis reconstruire le site. L’absence de cette variable désactive le widget.
-
-Le code complet du widget, de son backend RAG, du mode vocal et de l’import Supabase se trouve dans `chatbot/`. Voir `chatbot/README.md` pour la configuration, l’indexation et les tests. Les fichiers `.env*`, bases locales et captures sont exclus de la branche. L’import RAG est séparé des migrations Prisma et se limite au schéma `tremplin_chatbot`.
+L'import des documents reste séparé des migrations Prisma et se limite au schéma
+`tremplin_chatbot`. Les secrets, bases locales et captures sont exclus de Git.
 
 ## Déploiement en ligne
 
