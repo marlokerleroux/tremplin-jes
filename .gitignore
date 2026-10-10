@@ -29,3 +29,5 @@ next-env.d.ts
 
 # vitest
 /.vitest/
+/.local/
+/artifacts/

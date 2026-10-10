@@ -2,10 +2,10 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import NextAuth from "next-auth"
 import { authConfigEdge } from "@/lib/auth-config.edge"
+import { isVitrineHost as matchesVitrineHost } from "@/lib/vitrine/host"
 
 const { auth } = NextAuth(authConfigEdge)
 
-const VITRINE_HOSTNAMES = ["tremplin-jeunes-en-scene.fr", "www.tremplin-jeunes-en-scene.fr"]
 const VITRINE_PAGES = ["/a-propos"]
 const VITRINE_ALLOWED_PATHS = ["/legal", "/privacy"]
 
@@ -17,7 +17,7 @@ export async function middleware(request: NextRequest) {
   const hostname = request.headers.get("host")?.split(":")[0] ?? ""
   const pathname = request.nextUrl.pathname
 
-  const isVitrineHost = VITRINE_HOSTNAMES.includes(hostname)
+  const isVitrineHost = matchesVitrineHost(hostname, process.env.LOCAL_SITE_MODE)
 
   // Vitrine hostname: rewrite root to /vitrine, block app routes
   if (isVitrineHost) {
