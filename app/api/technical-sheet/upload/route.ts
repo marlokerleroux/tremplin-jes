@@ -5,7 +5,9 @@ import { deleteBlob, uploadPrivatePdf } from "@/lib/blob-storage"
 import { pdfErrorMessage, readPdfFile } from "@/lib/pdf"
 import { sendTechnicalSheetSubmittedEmail } from "@/lib/email/notifications"
 import { uuidSchema } from "@/lib/validation/common"
-import { notifyAdminsIfComplete } from "@/lib/dossier"
+import { isDossierComplete, notifyAdminsIfComplete } from "@/lib/dossier"
+import { getSeasonConfig } from "@/lib/season-config"
+import { hitRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     const application = await prisma.application.findFirst({
-      where: { id: applicationId.data, user_id: session.user.id },
+      where: { id: applicationId.data, user_id: session.user.id, edition: (await getSeasonConfig()).edition },
       include: { technical_sheet: { select: { pdf_url: true } }, profile: { select: { email: true, first_name: true, last_name: true } } },
     })
     if (!application) {
@@ -29,12 +31,24 @@ export async function POST(request: NextRequest) {
     if (application.status === "validated") {
       return NextResponse.json({ error: "Candidature validée : la fiche technique ne peut plus être modifiée" }, { status: 403 })
     }
+    if (application.status === "rejected") {
+      return NextResponse.json({ error: "Candidature refusée : la fiche technique ne peut plus être modifiée" }, { status: 403 })
+    }
+    const { limited } = await hitRateLimit(
+      `upload:${application.id}`,
+      RATE_LIMITS.documentUploadPerApplication.limit,
+      RATE_LIMITS.documentUploadPerApplication.windowMs,
+    )
+    if (limited) {
+      return NextResponse.json({ error: "Trop d'envois de documents, réessayez dans une heure" }, { status: 429 })
+    }
 
     const file = await readPdfFile(formData.get("file"))
     if (!file.ok) {
       return NextResponse.json({ error: pdfErrorMessage(file.error) }, { status: 400 })
     }
 
+    const wasComplete = await isDossierComplete(application.id)
     const blobUrl = await uploadPrivatePdf(`technical-sheets/${application.edition}/${application.id}.pdf`, file.buffer)
     const previousUrl = application.technical_sheet?.pdf_url
 
@@ -49,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     await sendTechnicalSheetSubmittedEmail(application.profile.email, application.profile.first_name, application.profile.last_name)
-    await notifyAdminsIfComplete(application)
+    await notifyAdminsIfComplete(application, wasComplete)
 
     return NextResponse.json({ success: true, filename: file.name, size: file.size })
   } catch (error) {

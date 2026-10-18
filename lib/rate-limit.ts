@@ -10,7 +10,12 @@ export interface RateLimitResult {
  * Le « hit » est enregistré AVANT le comptage : des requêtes simultanées se voient donc
  * mutuellement et ne peuvent pas contourner la limite.
  */
-export async function hitRateLimit(key: string, limit: number, windowMs: number): Promise<RateLimitResult> {
+export async function hitRateLimit(
+  key: string,
+  limit: number,
+  windowMs: number,
+  options: { failClosed?: boolean } = {},
+): Promise<RateLimitResult> {
   const since = new Date(Date.now() - windowMs)
   try {
     await prisma.rateLimitHit.create({ data: { key } })
@@ -22,9 +27,10 @@ export async function hitRateLimit(key: string, limit: number, windowMs: number)
     }
     return { limited: count > limit, remaining: Math.max(0, limit - count) }
   } catch (error) {
-    // En cas d'erreur base, on laisse passer plutôt que de bloquer le service.
+    // En cas d'erreur base, on laisse passer plutôt que de bloquer le service,
+    // sauf pour les limites qui protègent les mots de passe (connexion, réinitialisation).
     console.error("[rate-limit] error:", error)
-    return { limited: false, remaining: limit }
+    return options.failClosed ? { limited: true, remaining: 0 } : { limited: false, remaining: limit }
   }
 }
 
@@ -46,4 +52,8 @@ export const RATE_LIMITS = {
   signupPerIp: { limit: 20, windowMs: 60 * 60 * 1000 },
   resetPasswordPerIp: { limit: 10, windowMs: 15 * 60 * 1000 },
   verificationResendPerIp: { limit: 6, windowMs: 60 * 60 * 1000 },
+  /** Par compte : limite les emails de vérification envoyés (y compris vers une adresse corrigée). */
+  verificationResendPerAccount: { limit: 4, windowMs: 60 * 60 * 1000 },
+  /** Par candidature : chaque dépôt de document envoie un email de confirmation. */
+  documentUploadPerApplication: { limit: 20, windowMs: 60 * 60 * 1000 },
 } as const

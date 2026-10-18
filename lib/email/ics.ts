@@ -33,7 +33,13 @@ function icsDate(date: Date): string {
 }
 
 function icsText(value: string): string {
-  return value.replace(/\\/g, "\\\\").replace(/;/g, "\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n")
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/;/g, "\\;")
+    .replace(/,/g, "\\,")
+    .replace(/\r\n|\r|\n/g, "\\n")
+    // Autres caractères de contrôle : jamais légitimes dans un nom ou un lieu.
+    .replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, "")
 }
 
 /** Plie les lignes à 75 octets comme l'exige la RFC 5545. */

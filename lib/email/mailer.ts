@@ -91,9 +91,7 @@ export async function sendTestEmail(smtpConfig: SMTPConfig): Promise<{ success: 
     return { success: true, message: `Email de test envoyé avec succès à ${smtpConfig.smtp_from_email}` }
   } catch (error) {
     console.error("[smtp] SMTP test error:", error)
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : "Erreur lors du test de connexion SMTP",
-    }
+    // Message générique : le détail (hôte, port, réponse du serveur) reste dans les journaux.
+    return { success: false, message: "Échec de la connexion SMTP : vérifiez l'hôte, le port, l'identifiant et le mot de passe" }
   }
 }

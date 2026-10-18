@@ -102,7 +102,7 @@ export default async function VitrineLayout({ children }: Readonly<{ children: R
   return (
     // Textes libres saisis dans l'administration : toute chaîne trop longue peut être coupée (pas de débordement mobile).
     <div className="min-w-0 [overflow-wrap:anywhere]">
-      {jsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />}
+      {jsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />}
       <VitrineHeader data={data} />
       <main>{children}</main>
       <VitrineFooter />

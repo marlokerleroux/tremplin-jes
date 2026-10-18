@@ -12,6 +12,7 @@ export async function POST(request: Request) {
       `reset-ip:${ip}`,
       RATE_LIMITS.resetPasswordPerIp.limit,
       RATE_LIMITS.resetPasswordPerIp.windowMs,
+      { failClosed: true },
     )
     if (limited) {
       return NextResponse.json({ error: "Trop de tentatives, réessayez plus tard" }, { status: 429 })
@@ -33,7 +34,8 @@ export async function POST(request: Request) {
     await prisma.$transaction([
       prisma.profile.update({
         where: { id: resetToken.profile_id },
-        data: { password_hash: passwordHash },
+        // Déconnecte les sessions ouvertes avec l'ancien mot de passe.
+        data: { password_hash: passwordHash, session_version: { increment: 1 } },
       }),
       prisma.passwordResetToken.updateMany({
         where: { profile_id: resetToken.profile_id, used: false },

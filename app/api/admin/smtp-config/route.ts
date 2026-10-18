@@ -43,9 +43,16 @@ export async function PUT(request: Request) {
     const data = parsed.data
 
     const existing = await prisma.smtpConfig.findFirst({ orderBy: { created_at: "asc" } })
-    const password = data.smtp_password || existing?.smtp_password || ""
+    // Le mot de passe enregistré n'est réutilisé que pour le même serveur et le même compte :
+    // il ne peut pas être envoyé vers un autre hôte sans être ressaisi.
+    const sameServer =
+      existing &&
+      existing.smtp_host === data.smtp_host &&
+      existing.smtp_port === data.smtp_port &&
+      existing.smtp_username === data.smtp_username
+    const password = data.smtp_password || (sameServer ? existing.smtp_password : "")
     if (!password) {
-      return NextResponse.json({ error: "Mot de passe SMTP requis" }, { status: 400 })
+      return NextResponse.json({ error: "Mot de passe SMTP requis (à ressaisir si le serveur ou l'identifiant change)" }, { status: 400 })
     }
 
     const values = {

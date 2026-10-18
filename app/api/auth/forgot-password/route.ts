@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { after, NextResponse } from "next/server"
 import crypto from "crypto"
 import { prisma } from "@/lib/prisma"
 import { forgotPasswordSchema } from "@/lib/validation/auth"
@@ -30,6 +30,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true })
     }
 
+    // Jeton et envoi après la réponse : même temps de réponse que pour une adresse inconnue.
+    after(() => issueResetLink(profile))
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("Forgot password error:", error)
+    return NextResponse.json({ error: "Une erreur est survenue" }, { status: 500 })
+  }
+}
+
+async function issueResetLink(profile: { id: string; email: string; first_name: string; last_name: string }) {
+  try {
     const token = crypto.randomBytes(32).toString("hex")
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000) // 1 heure
 
@@ -49,10 +60,7 @@ export async function POST(request: Request) {
     if (!result.success) {
       console.error("[auth] password reset email failed:", result.error)
     }
-
-    return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("Forgot password error:", error)
-    return NextResponse.json({ error: "Une erreur est survenue" }, { status: 500 })
+    console.error("[auth] password reset link failed:", error)
   }
 }

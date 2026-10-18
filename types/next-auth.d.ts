@@ -10,6 +10,7 @@ declare module "next-auth" {
       role: string
       firstName: string
       lastName: string
+      sessionVersion: number
     }
   }
 
@@ -17,6 +18,7 @@ declare module "next-auth" {
     role?: string
     firstName?: string
     lastName?: string
+    sessionVersion?: number
   }
 }
 
@@ -26,5 +28,6 @@ declare module "next-auth/jwt" {
     role: string
     firstName: string
     lastName: string
+    sessionVersion?: number
   }
 }

@@ -27,6 +27,7 @@ export const authConfigEdge: NextAuthConfig = {
         token.role = user.role ?? "user"
         token.firstName = user.firstName ?? ""
         token.lastName = user.lastName ?? ""
+        token.sessionVersion = user.sessionVersion ?? 0
       }
       return token
     },
@@ -36,6 +37,7 @@ export const authConfigEdge: NextAuthConfig = {
         session.user.role = token.role
         session.user.firstName = token.firstName
         session.user.lastName = token.lastName
+        session.user.sessionVersion = token.sessionVersion ?? 0
       }
       return session
     },

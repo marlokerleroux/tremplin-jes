@@ -27,15 +27,21 @@ export async function isDossierComplete(applicationId: string): Promise<boolean>
   return members.every((member, index) => !member.birthDate || !isMinorAt(member.birthDate, referenceDate) || provided.has(index))
 }
 
-/** Prévient l'administration si le dossier vient d'être complété (jamais bloquant). */
-export async function notifyAdminsIfComplete(application: {
-  id: string
-  stage_name: string
-  edition: number
-  profile: { first_name: string; last_name: string; email: string }
-}): Promise<void> {
+/**
+ * Prévient l'administration si le dossier vient d'être complété (jamais bloquant).
+ * `wasComplete` : état avant le dépôt, pour ne pas renvoyer l'alerte à chaque remplacement de document.
+ */
+export async function notifyAdminsIfComplete(
+  application: {
+    id: string
+    stage_name: string
+    edition: number
+    profile: { first_name: string; last_name: string; email: string }
+  },
+  wasComplete = false,
+): Promise<void> {
   try {
-    if (!(await isDossierComplete(application.id))) return
+    if (wasComplete || !(await isDossierComplete(application.id))) return
     await notifyAdmins(`Dossier complet : ${application.stage_name}`, [
       `Le dossier de ${application.stage_name} (édition ${application.edition}) est complet et peut être validé.`,
       `Candidat : ${application.profile.first_name} ${application.profile.last_name} · ${application.profile.email}`,
