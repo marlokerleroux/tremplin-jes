@@ -226,6 +226,17 @@ model EmailTemplate {
   @@map("email_templates")
 }
 
+/// Règlement du tremplin modifiable par l'administration (une seule ligne, id "current" ; absent = texte par défaut du code).
+/// Publié en PDF généré à la volée sur /pdf/reglement.pdf.
+model RulesDocument {
+  id         String   @id @default("current")
+  title      String
+  body       String
+  updated_at DateTime @updatedAt
+
+  @@map("rules_document")
+}
+
 /// Configuration du site vitrine (une seule ligne) : mode d'affichage et bandeau d'annonce.
 model VitrineConfig {
   id              String   @id @default(uuid()) @db.Uuid

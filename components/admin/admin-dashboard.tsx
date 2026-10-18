@@ -20,6 +20,7 @@ import { ResultsTab } from "./results-tab"
 import { EmailTemplatesPanel } from "./email-templates-panel"
 import { RemindersPanel } from "./reminders-panel"
 import { VitrineSettings } from "./vitrine-settings"
+import { RulesPanel } from "./rules-panel"
 import { ApplicationDetailsDialog } from "./application-details-dialog"
 import { EditApplicationDialog } from "./edit-application-dialog"
 import { UploadDialog, type UploadTarget } from "./upload-dialog"
@@ -169,6 +170,7 @@ export function AdminDashboard({ initialApplications, initialTimeSlots, initialS
 
           <TabsContent value="settings" className="space-y-6">
             <SeasonSettings season={season} timeSlots={timeSlots} onSeasonChange={handleSeasonChange} onSlotsChange={refreshTimeSlots} />
+            <RulesPanel />
             <SmtpSettings />
             <EmailTemplatesPanel smtpConfigured={smtpConfigured} />
             <RemindersPanel applications={applications} season={season} smtpConfigured={smtpConfigured} onRefresh={refreshApplications} />

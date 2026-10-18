@@ -24,3 +24,8 @@ export const templateKeyOnlySchema = z.object({ key: templateKeySchema })
 export const resendVerificationSchema = z.object({
   email: emailSchema.nullish().transform((v) => v ?? null),
 })
+
+export const rulesSchema = z.object({
+  title: z.string("Titre requis").trim().min(1, "Titre requis").max(200, "Titre trop long (200 caractères maximum)"),
+  body: z.string("Contenu requis").trim().min(1, "Contenu requis").max(50_000, "Règlement trop long (50 000 caractères maximum)"),
+})

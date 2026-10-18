@@ -20,10 +20,13 @@ export function VitrineFooter() {
           </div>
 
           <div className="flex flex-col items-center md:items-end gap-3 text-sm text-white/60">
-            <div className="flex gap-6">
+            <div className="flex flex-wrap justify-center md:justify-end gap-x-6 gap-y-2">
               <Link href="/a-propos" className="hover:text-white transition-colors">
                 À propos
               </Link>
+              <a href="/pdf/reglement.pdf" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
+                Règlement
+              </a>
               <Link href="/legal" className="hover:text-white transition-colors">
                 Mentions légales
               </Link>
