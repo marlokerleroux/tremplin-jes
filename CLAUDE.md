@@ -69,6 +69,10 @@ NextAuth v5 with Credentials provider (`lib/auth-config.ts`, which extends the e
 - Reminders: `/api/cron/reminders` (Vercel Cron, daily at 08:00 UTC, `CRON_SECRET` bearer auth) sends J-7 and J-1 emails once the schedule is validated (`lib/reminders.ts` rules, `lib/reminders-runner.ts`), cleans `rate_limit_hits`, and keeps the Supabase database awake. Admins can trigger the same run from Paramètres.
 - Printable jury documents (admin only): `/admin/print/candidates?id=|date=|status=validated` (one sheet per candidate with a blank jury grid) and `/admin/print/day?date=` (running order).
 
+### Règlement (rules PDF)
+
+The tournament rules are edited in **Paramètres → Règlement du tremplin** (`components/admin/rules-panel.tsx`) and published as a PDF generated on each request by `app/pdf/reglement.pdf/route.ts` (public URL `/pdf/reglement.pdf`, works on both hosts since the middleware matcher skips `.pdf`). Text uses a minimal markup (`# titre`, `- puce`, `**gras**`, parsed by `lib/reglement/markup.ts`, unit tested) and season variables (`{{saison}}`, `{{dates_auditions}}`, `{{date_cloture}}`... listed in `lib/reglement/default.ts`). Default text lives in `lib/reglement/default.ts`; the single `rules_document` row overrides it. PDF rendering uses `pdf-lib` with standard fonts (`lib/reglement/pdf.ts`, characters outside WinAnsi are replaced). Admin API: `/api/admin/reglement` (GET/PUT/DELETE) and `/preview` (POST → PDF).
+
 ### Seasons (éditions)
 
 Everything season-specific lives in the single `schedule_config` row (`lib/season-config.ts`): `edition` (year of the final), registration window, audition dates, age reference date, venue, schedule validation flag. Applications and time slots carry an `edition` column; a profile can have one application per edition (`@@unique([user_id, edition])`). Eligibility and age rules are pure functions in `lib/season.ts` (unit tested). Admins manage seasons in the **Paramètres** tab (new season, dates, slot generation, SMTP, archives/purge by edition).
@@ -79,7 +83,7 @@ Everything season-specific lives in the single `schedule_config` row (`lib/seaso
 - `lib/prisma.ts` — singleton PrismaClient
 - `lib/admin-data.ts` — DTOs and queries for the admin UI
 
-Key tables: `profiles`, `applications`, `time_slots`, `technical_sheets` (one per application), `parental_authorizations`, `audition_tracking`, `smtp_config`, `schedule_config`, `email_templates`, `password_reset_tokens`, `rate_limit_hits`.
+Key tables: `profiles`, `applications`, `time_slots`, `technical_sheets` (one per application), `parental_authorizations`, `audition_tracking`, `smtp_config`, `schedule_config`, `email_templates`, `rules_document`, `password_reset_tokens`, `rate_limit_hits`.
 
 ### Vitrine Site (`app/vitrine/`)
 
@@ -99,7 +103,7 @@ All business logic runs through App Router API routes; every write is validated 
 - **Applications**: `/api/application/create`, `/api/application/delete`
 - **Uploads**: `/api/technical-sheet/upload`, `/api/parental-authorization/upload` (+ `/api/admin/...` variants)
 - **Documents** (authenticated PDF streaming): `/api/documents/technical-sheet/[applicationId]`, `/api/documents/parental-authorization/[applicationId]?member=N`
-- **Admin**: `/api/admin/applications`, `/api/admin/applications/status`, `/api/admin/application/update`, `/api/admin/audition-tracking`, `/api/admin/season` (+ `/new`, `/validate`, `/reset`), `/api/admin/time-slots` (+ `/assign`, `/remove`), `/api/admin/smtp-config` (+ `/test`), `/api/admin/email-templates` (+ `/preview`, `/test`), `/api/admin/results` (+ `/send`), `/api/admin/reminders/run`, `/api/admin/editions` (+ `/[edition]` DELETE = purge)
+- **Admin**: `/api/admin/applications`, `/api/admin/applications/status`, `/api/admin/application/update`, `/api/admin/audition-tracking`, `/api/admin/season` (+ `/new`, `/validate`, `/reset`), `/api/admin/time-slots` (+ `/assign`, `/remove`), `/api/admin/smtp-config` (+ `/test`), `/api/admin/email-templates` (+ `/preview`, `/test`), `/api/admin/results` (+ `/send`), `/api/admin/reminders/run`, `/api/admin/editions` (+ `/[edition]` DELETE = purge), `/api/admin/reglement` (+ `/preview`)
 - **Cron**: `/api/cron/reminders` (GET, `Authorization: Bearer $CRON_SECRET`)
 - **Exports**: `/api/applications/export`, `/api/technical-sheets/download-all`
 
