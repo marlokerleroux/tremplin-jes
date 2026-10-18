@@ -12,8 +12,12 @@ export async function POST(request: Request) {
     if (!authResult.ok) return authResult.response
 
     const ip = getClientIp(request)
-    const { limited } = await hitRateLimit(`verify-resend:${ip}`, RATE_LIMITS.verificationResendPerIp.limit, RATE_LIMITS.verificationResendPerIp.windowMs)
-    if (limited) {
+    const userId = authResult.session.user.id
+    const [byIp, byAccount] = await Promise.all([
+      hitRateLimit(`verify-resend:${ip}`, RATE_LIMITS.verificationResendPerIp.limit, RATE_LIMITS.verificationResendPerIp.windowMs),
+      hitRateLimit(`verify-resend-account:${userId}`, RATE_LIMITS.verificationResendPerAccount.limit, RATE_LIMITS.verificationResendPerAccount.windowMs),
+    ])
+    if (byIp.limited || byAccount.limited) {
       return NextResponse.json({ error: "Trop de demandes, réessayez dans une heure" }, { status: 429 })
     }
 
@@ -22,7 +26,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: formatZodError(parsed.error) }, { status: 400 })
     }
 
-    const outcome = await resendVerification(authResult.session.user.id, parsed.data.email)
+    const outcome = await resendVerification(userId, parsed.data.email)
     if (!outcome.ok) {
       return NextResponse.json({ error: outcome.error }, { status: outcome.status })
     }

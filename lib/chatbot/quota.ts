@@ -2,6 +2,8 @@ import { createHmac } from "node:crypto"
 import { prisma } from "@/lib/prisma"
 import { getClientIp } from "@/lib/rate-limit"
 
+const PER_IP_DAILY_LIMIT = 40
+
 /** Shared across Vercel instances; only adds chatbot-prefixed rate-limit records. */
 export async function reserveChatbotRequest(request: Request): Promise<boolean> {
   const secret = process.env.AUTH_SECRET || process.env.OPENROUTER_API_KEY
@@ -22,6 +24,9 @@ export async function reserveChatbotRequest(request: Request): Promise<boolean> 
     if (daily >= dailyLimit) return false
     const perIp = await tx.rateLimitHit.count({ where: { key, created_at: { gte: minute } } })
     if (perIp >= 12) return false
+    // Une seule adresse ne peut pas épuiser le quota quotidien commun.
+    const perIpDaily = await tx.rateLimitHit.count({ where: { key } })
+    if (perIpDaily >= PER_IP_DAILY_LIMIT) return false
     const globalMinute = await tx.rateLimitHit.count({ where: { key: { startsWith: "chatbot:v1:" }, created_at: { gte: minute } } })
     if (globalMinute >= 30) return false
     await tx.rateLimitHit.create({ data: { key } })

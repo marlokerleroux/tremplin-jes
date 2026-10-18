@@ -308,6 +308,26 @@ try {
   await login(C1.email, C1.password)
   const dashFinal = await page.textContent("body")
   check("candidat : bannière finaliste", /Vous êtes finaliste/.test(dashFinal) && !/Confirmez votre adresse/.test(dashFinal))
+
+  // --- Sécurité : réinitialisation du mot de passe = déconnexion des sessions ouvertes
+  const oldCookies = await ctx.cookies()
+  catcher.messages.length = 0
+  const rForgot = await page.request.post(`${BASE}/api/auth/forgot-password`, { data: { email: C1.email } })
+  check("mot de passe oublié : réponse générique", rForgot.status() === 200)
+  const resetMail = await waitForMail(catcher, (m) => m.to.includes(C1.email) && /reset-password\?token=/.test(m.text))
+  const resetToken = resetMail?.text.match(/token=([a-f0-9]{64})/)?.[1]
+  check("email de réinitialisation reçu (envoyé après la réponse)", Boolean(resetToken))
+  const rWeak = await page.request.post(`${BASE}/api/auth/reset-password`, { data: { token: resetToken, password: "motdepasse" } })
+  check("mot de passe trop courant refusé", rWeak.status() === 400, String(rWeak.status()))
+  const rReset2 = await page.request.post(`${BASE}/api/auth/reset-password`, { data: { token: resetToken, password: "NouveauMotDePasse!42" } })
+  check("mot de passe réinitialisé", rReset2.status() === 200, String(rReset2.status()))
+  await ctx.clearCookies()
+  await ctx.addCookies(oldCookies)
+  const rOldSession = await page.request.post(`${BASE}/api/auth/resend-verification`, { data: {} })
+  check("ancienne session invalidée après réinitialisation", rOldSession.status() === 401, String(rOldSession.status()))
+  await logout()
+  await login(C1.email, "NouveauMotDePasse!42")
+  check("connexion avec le nouveau mot de passe", /\/dashboard/.test(new URL(page.url()).pathname))
   await logout()
 } catch (error) {
   console.error("E2E ERROR:", error)

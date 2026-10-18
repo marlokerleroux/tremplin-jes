@@ -15,7 +15,11 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   }
   const result = await readBlob(media.blob_url, request.headers.get("if-none-match") ?? undefined)
   if (result.status === 404) return NextResponse.json({ error: "Image introuvable" }, { status: 404 })
-  const headers = new Headers({ "Cache-Control": "public, max-age=31536000, immutable" })
+  const headers = new Headers({
+    "Cache-Control": "public, max-age=31536000, immutable",
+    "X-Content-Type-Options": "nosniff",
+    "Content-Security-Policy": "default-src 'none'; sandbox",
+  })
   if (result.status === 304) {
     if (result.etag) headers.set("ETag", result.etag)
     return new NextResponse(null, { status: 304, headers })

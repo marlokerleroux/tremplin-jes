@@ -1,4 +1,4 @@
-import { BlobError, del, get, put } from "@vercel/blob"
+import { BlobAccessError, del, get, put } from "@vercel/blob"
 
 /**
  * Stockage des documents (fiches techniques, autorisations parentales) sur Vercel Blob.
@@ -29,8 +29,9 @@ export async function uploadPrivatePdf(pathname: string, data: Buffer): Promise<
     })
     return blob.url
   } catch (error) {
-    // Store encore public : on ne bloque pas les candidats, mais on le signale dans les journaux.
-    if (error instanceof BlobError) {
+    // Store encore public (accès refusé en mode privé) : on ne bloque pas les candidats, mais on le signale.
+    // Toute autre erreur (indisponibilité, quota...) échoue : un document ne doit jamais devenir public par accident.
+    if (error instanceof BlobAccessError) {
       console.error(
         "[blob] private upload failed (is the connected Blob store private?). Falling back to public access:",
         error.message,

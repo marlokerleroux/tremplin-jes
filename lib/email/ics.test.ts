@@ -34,8 +34,21 @@ describe("buildAuditionIcs", () => {
     expect(ics).toContain("DTEND:20270130T134000Z")
     expect(ics).toContain("DTSTAMP:20270101T100000Z")
     expect(ics).toContain("LOCATION:Espace Léo Ferré\\, Brest")
-    expect(ics).toContain("DESCRIPTION:Ligne 1\\nLigne 2\\, avec virgule\; et point-virgule")
+    expect(ics).toContain("DESCRIPTION:Ligne 1\\nLigne 2\\, avec virgule\\; et point-virgule")
     expect(ics?.endsWith("END:VCALENDAR\r\n")).toBe(true)
+  })
+  it("neutralise les retours chariot isolés (pas de propriété injectée)", () => {
+    const ics = buildAuditionIcs({
+      uid: "x",
+      date: "2027-01-30",
+      startTime: "10:00",
+      endTime: "10:10",
+      summary: "Audition : X\rURL:https://exemple.invalid",
+      description: "D",
+      location: "L",
+    })
+    expect(ics).toContain("SUMMARY:Audition : X\\nURL:https://exemple.invalid")
+    expect(ics).not.toMatch(/\rURL:/)
   })
   it("plie les lignes longues", () => {
     const ics = buildAuditionIcs({

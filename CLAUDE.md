@@ -59,7 +59,7 @@ Routing is handled in `middleware.ts` based on hostname:
 
 ### Auth Flow
 
-NextAuth v5 with Credentials provider (`lib/auth-config.ts`, which extends the edge-safe `lib/auth-config.edge.ts`). Emails are normalised to lowercase; logins are rate limited (`lib/rate-limit.ts`, table `rate_limit_hits`). The `profiles` table has a `role` field (`admin` | `user`). After login, users are redirected based on role (`/admin` or `/dashboard`). API routes use `requireApiUser()` / `requireApiAdmin()` from `lib/auth-helpers.ts`.
+NextAuth v5 with Credentials provider (`lib/auth-config.ts`, which extends the edge-safe `lib/auth-config.edge.ts`). Emails are normalised to lowercase; logins are rate limited (`lib/rate-limit.ts`, table `rate_limit_hits`). The `profiles` table has a `role` field (`admin` | `user`). After login, users are redirected based on role (`/admin` or `/dashboard`). API routes use `requireApiUser()` / `requireApiAdmin()` from `lib/auth-helpers.ts`. Every request re-reads the profile: the role comes from the DB, and `profiles.session_version` (incremented on password reset, copied into the JWT at login) must match, so a password reset logs out every existing session. Login and reset rate limits fail closed when the DB errors; common passwords are rejected by `passwordSchema`.
 
 ### Email verification, results and reminders
 

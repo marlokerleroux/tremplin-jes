@@ -30,8 +30,8 @@ export const authConfig: NextAuthConfig = {
         const ip = getClientIp(request)
 
         const [byPair, byIp] = await Promise.all([
-          hitRateLimit(`login:${email}:${ip}`, RATE_LIMITS.login.limit, RATE_LIMITS.login.windowMs),
-          hitRateLimit(`login-ip:${ip}`, RATE_LIMITS.loginPerIp.limit, RATE_LIMITS.loginPerIp.windowMs),
+          hitRateLimit(`login:${email}:${ip}`, RATE_LIMITS.login.limit, RATE_LIMITS.login.windowMs, { failClosed: true }),
+          hitRateLimit(`login-ip:${ip}`, RATE_LIMITS.loginPerIp.limit, RATE_LIMITS.loginPerIp.windowMs, { failClosed: true }),
         ])
         if (byPair.limited || byIp.limited) {
           console.warn("[auth] login rate limited", { email, ip })
@@ -50,6 +50,7 @@ export const authConfig: NextAuthConfig = {
           role: profile.role,
           firstName: profile.first_name,
           lastName: profile.last_name,
+          sessionVersion: profile.session_version,
         }
       },
     }),

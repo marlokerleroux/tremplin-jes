@@ -5,7 +5,9 @@ import { deleteBlob, uploadPrivatePdf } from "@/lib/blob-storage"
 import { pdfErrorMessage, readPdfFile } from "@/lib/pdf"
 import { normalizeGroupMembers } from "@/lib/admin-data"
 import { uuidSchema } from "@/lib/validation/common"
-import { notifyAdminsIfComplete } from "@/lib/dossier"
+import { isDossierComplete, notifyAdminsIfComplete } from "@/lib/dossier"
+import { getSeasonConfig } from "@/lib/season-config"
+import { hitRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,7 +26,7 @@ export async function POST(request: NextRequest) {
     }
 
     const application = await prisma.application.findFirst({
-      where: { id: applicationId.data, user_id: session.user.id },
+      where: { id: applicationId.data, user_id: session.user.id, edition: (await getSeasonConfig()).edition },
       include: {
         parental_authorizations: { where: { member_index: memberIndex }, select: { pdf_url: true } },
         profile: { select: { email: true, first_name: true, last_name: true } },
@@ -35,6 +37,17 @@ export async function POST(request: NextRequest) {
     }
     if (application.status === "validated") {
       return NextResponse.json({ error: "Candidature validée : le document ne peut plus être modifié" }, { status: 403 })
+    }
+    if (application.status === "rejected") {
+      return NextResponse.json({ error: "Candidature refusée : le document ne peut plus être modifié" }, { status: 403 })
+    }
+    const { limited } = await hitRateLimit(
+      `upload:${application.id}`,
+      RATE_LIMITS.documentUploadPerApplication.limit,
+      RATE_LIMITS.documentUploadPerApplication.windowMs,
+    )
+    if (limited) {
+      return NextResponse.json({ error: "Trop d'envois de documents, réessayez dans une heure" }, { status: 429 })
     }
     const members = normalizeGroupMembers(application.group_members)
     if (memberIndex >= members.length) {
@@ -48,6 +61,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: pdfErrorMessage(file.error) }, { status: 400 })
     }
 
+    const wasComplete = await isDossierComplete(application.id)
     const blobUrl = await uploadPrivatePdf(
       `parental-authorizations/${application.edition}/${application.id}-${memberIndex}.pdf`,
       file.buffer,
@@ -64,7 +78,7 @@ export async function POST(request: NextRequest) {
       await deleteBlob(previousUrl)
     }
 
-    await notifyAdminsIfComplete(application)
+    await notifyAdminsIfComplete(application, wasComplete)
 
     return NextResponse.json({ success: true, filename: file.name, size: file.size })
   } catch (error) {
