@@ -1,3 +1,4 @@
+import { API_BASE } from './runtime';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 type VoiceState = 'idle' | 'permission' | 'recording' | 'transcribing';
@@ -89,7 +90,7 @@ export function useVoiceRecorder(onTranscript: (text: string) => void) {
         try {
           const audio = new Blob(chunks, { type: current.mimeType || mimeType });
           if (audio.size < 64) throw new Error('Je n’ai rien enregistré. Réessaie en parlant près du micro.');
-          const response = await fetch('/api/transcribe', {
+          const response = await fetch(`${API_BASE}/transcribe`, {
             method: 'POST', headers: { 'Content-Type': audio.type }, body: audio,
             signal: AbortSignal.any([controller.signal, AbortSignal.timeout(45000)]),
           });

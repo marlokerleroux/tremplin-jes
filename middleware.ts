@@ -17,6 +17,9 @@ export async function middleware(request: NextRequest) {
   const hostname = request.headers.get("host")?.split(":")[0] ?? ""
   const pathname = request.nextUrl.pathname
 
+  // Static, isolated widget: let its HTML, JS, CSS and fonts through.
+  if (matchesPath(pathname, ["/chatbot"])) return NextResponse.next()
+
   const isVitrineHost = matchesVitrineHost(hostname, process.env.LOCAL_SITE_MODE)
 
   // Vitrine hostname: rewrite root to /vitrine, block app routes

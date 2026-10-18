@@ -1,3 +1,8 @@
+> **Intégration au site Next.js / Vercel** : le build du dépôt parent compile ce widget
+> sous `/chatbot/` et expose son API sous `/api/chatbot/`. Le serveur Express décrit
+> ci-dessous est uniquement le mode autonome/local. Voir `../README.md` pour le
+> déploiement intégré ; aucune URL externe du chatbot n'est nécessaire.
+
 # En coulisses — Tremplin Jeunes en Scène
 
 Un chatbot intégrable au site, aux couleurs de son logo. Fenêtre responsive, questions suggérées, réponses en Markdown avec titres en gras, liens vers les sources, reprise après erreur et nouvelle conversation. Le dossier contient également une page de démonstration dans le contexte visuel du site officiel.

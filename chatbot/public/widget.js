@@ -1,12 +1,13 @@
 (() => {
   if (document.getElementById('tremplin-chat-frame')) return;
   const script = document.currentScript;
-  const base = new URL(script.src).origin;
+  const directory = new URL('.', script.src);
+  const base = directory.origin;
   const frame = document.createElement('iframe');
   const startOpen = script.dataset.open === 'true' && window.innerWidth > 640;
   frame.id = 'tremplin-chat-frame';
   frame.title = 'En coulisses — Assistant du Tremplin Jeunes en Scène';
-  frame.src = `${base}/chat?embed=1&open=${startOpen ? '1' : '0'}&parent=${encodeURIComponent(location.origin)}`;
+  frame.src = new URL(`${script.dataset.chatPath || 'chat'}?embed=1&open=${startOpen ? '1' : '0'}&parent=${encodeURIComponent(location.origin)}`, directory).href;
   frame.setAttribute('allow',`clipboard-write; microphone ${base}`);
   frame.style.cssText = 'position:fixed;bottom:0;right:0;width:254px;height:106px;border:0;z-index:2147483000;background:transparent;color-scheme:light;';
   let open = startOpen;
