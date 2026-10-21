@@ -592,7 +592,7 @@ export function RegistrationForm({ edition, ageReferenceDate, auditionDates, ven
               className="mt-0.5"
             />
             <Label htmlFor="refusesBroadcast" className="font-normal cursor-pointer leading-relaxed">
-              Je refuse la diffusion de ma prestation sur les plateformes
+              Je refuse que ma prestation et mon image soient diffusées sur les plateformes
             </Label>
           </div>
         </CardContent>

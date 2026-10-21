@@ -132,7 +132,7 @@ export function ApplicationDetailsDialog({
                 </p>
               )}
               <p>
-                <span className="text-muted-foreground">Autorise la diffusion :</span> {application.allows_broadcast ? "Oui" : "Non"}
+                <span className="text-muted-foreground">Autorise la diffusion (prestation et image) :</span> {application.allows_broadcast ? "Oui" : "Non"}
               </p>
               <p>
                 <span className="text-muted-foreground">Expérience scénique :</span> {application.has_stage_experience ? "Oui" : "Non"}
