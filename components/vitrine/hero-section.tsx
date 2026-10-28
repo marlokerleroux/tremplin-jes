@@ -27,6 +27,8 @@ function HeroShell({ children, confetti = false }: { children: React.ReactNode; 
     <section className="relative overflow-hidden min-h-[90vh] flex items-center justify-center">
       <Image src="/images/hero-tremplin.jpg" alt="" fill sizes="100vw" className="object-cover object-[32%_center] md:object-center" priority />
       <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-purple-950/50 to-black/70" />
+      {/* Mobile : le texte descend plus bas, on fonce le bas de la photo pour garder la lisibilité */}
+      <div className="absolute inset-x-0 bottom-0 h-[70%] bg-gradient-to-t from-black/80 via-black/55 to-transparent md:hidden" />
       {confetti && <Confetti />}
       <div className="relative z-10 container mx-auto px-4 py-16 text-center space-y-8">
         <Image src="/images/design-mode/logo_sans_fond.png" alt="Tremplin Jeunes en Scène" width={400} height={120} className="h-16 md:h-20 w-auto mx-auto" />
