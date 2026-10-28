@@ -54,9 +54,9 @@ export async function generateMetadata(): Promise<Metadata> {
       type: "website",
       locale: "fr_FR",
       siteName: "Tremplin Jeunes en Scène",
-      images: [{ url: "/images/hero-concert.jpg", width: 1920, height: 1920, alt: "Tremplin Jeunes en Scène - Concert" }],
+      images: [{ url: "/images/hero-tremplin.jpg", width: 1920, height: 1278, alt: "Tremplin Jeunes en Scène - Concert" }],
     },
-    twitter: { card: "summary_large_image", title, description, images: ["/images/hero-concert.jpg"] },
+    twitter: { card: "summary_large_image", title, description, images: ["/images/hero-tremplin.jpg"] },
     robots: { index: true, follow: true },
   }
 }
@@ -92,7 +92,7 @@ function eventJsonLd(data: VitrineData): Record<string, unknown> | null {
           },
         }
       : {}),
-    image: `${VITRINE_SITE_URL}/images/hero-concert.jpg`,
+    image: `${VITRINE_SITE_URL}/images/hero-tremplin.jpg`,
   }
 }
 
