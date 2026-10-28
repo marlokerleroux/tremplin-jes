@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     description:
       "Découvrez l'association Pass'Musique et le Tremplin Jeunes en Scène, le tremplin musical breton pour les jeunes artistes de 13 à 23 ans.",
     type: "website",
-    images: [{ url: "/images/hero-concert.jpg", width: 1920, height: 1920 }],
+    images: [{ url: "/images/hero-tremplin.jpg", width: 1920, height: 1278 }],
   },
 }
 

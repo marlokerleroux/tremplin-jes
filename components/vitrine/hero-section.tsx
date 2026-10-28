@@ -25,7 +25,7 @@ function formatAuditionDates(dates: string[]): string {
 function HeroShell({ children, confetti = false }: { children: React.ReactNode; confetti?: boolean }) {
   return (
     <section className="relative overflow-hidden min-h-[90vh] flex items-center justify-center">
-      <Image src="/images/hero-concert.jpg" alt="" fill sizes="100vw" className="object-cover" priority />
+      <Image src="/images/hero-tremplin.jpg" alt="" fill sizes="100vw" className="object-cover object-[32%_center] md:object-center" priority />
       <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-purple-950/50 to-black/70" />
       {confetti && <Confetti />}
       <div className="relative z-10 container mx-auto px-4 py-16 text-center space-y-8">
