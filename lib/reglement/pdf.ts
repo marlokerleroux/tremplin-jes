@@ -121,6 +121,8 @@ export interface RulesPdfInput {
   body: string
   footer: string
   updatedAt?: string | null
+  /** Métadonnée « Sujet » du PDF (par défaut : règlement). */
+  subject?: string
 }
 
 export async function renderRulesPdf(input: RulesPdfInput): Promise<Uint8Array> {
@@ -133,7 +135,7 @@ export async function renderRulesPdf(input: RulesPdfInput): Promise<Uint8Array> 
   const title = clean(input.title.replace(/\s+/g, " ").trim())
   doc.setTitle(title || "Règlement du tremplin")
   doc.setAuthor("Association Pass'Musique")
-  doc.setSubject("Règlement du Tremplin Jeunes en Scène")
+  doc.setSubject(input.subject ?? "Règlement du Tremplin Jeunes en Scène")
   doc.setLanguage("fr-FR")
   doc.setCreator("Tremplin Jeunes en Scène")
 
