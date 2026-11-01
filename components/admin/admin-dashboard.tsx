@@ -19,6 +19,7 @@ import { EditionsPanel } from "./editions-panel"
 import { ResultsTab } from "./results-tab"
 import { EmailTemplatesPanel } from "./email-templates-panel"
 import { RemindersPanel } from "./reminders-panel"
+import { DossierRemindersPanel } from "./dossier-reminders-panel"
 import { VitrineSettings } from "./vitrine-settings"
 import { RulesPanel } from "./rules-panel"
 import { ApplicationDetailsDialog } from "./application-details-dialog"
@@ -173,6 +174,12 @@ export function AdminDashboard({ initialApplications, initialTimeSlots, initialS
             <RulesPanel />
             <SmtpSettings />
             <EmailTemplatesPanel smtpConfigured={smtpConfigured} />
+            <DossierRemindersPanel
+              applications={applications}
+              season={season}
+              ageReferenceDate={ageReferenceDate}
+              onSeasonChange={handleSeasonChange}
+            />
             <RemindersPanel applications={applications} season={season} smtpConfigured={smtpConfigured} onRefresh={refreshApplications} />
             <EditionsPanel currentEdition={season.edition} />
           </TabsContent>

@@ -14,6 +14,9 @@ export interface SeasonConfigDTO {
   age_reference_date: string | null
   is_validated: boolean
   venue: string | null
+  dossier_reminders_enabled: boolean
+  dossier_reminder_interval_days: number
+  dossier_reminder_final_days: number
 }
 
 export const DEFAULT_VENUE = "Espace Léo Ferré, Brest"
@@ -42,6 +45,9 @@ export function serializeSeasonConfig(config: SeasonConfig): SeasonConfigDTO {
     age_reference_date: config.age_reference_date,
     is_validated: config.is_validated,
     venue: config.venue,
+    dossier_reminders_enabled: config.dossier_reminders_enabled,
+    dossier_reminder_interval_days: config.dossier_reminder_interval_days,
+    dossier_reminder_final_days: config.dossier_reminder_final_days,
   }
 }
 

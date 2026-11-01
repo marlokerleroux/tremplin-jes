@@ -101,7 +101,7 @@ try {
   await page.getByText("Modèles d'emails", { exact: true }).waitFor()
   await page.locator("#template-subject").waitFor()
   const tplList = await (await page.request.get(`${BASE}/api/admin/email-templates`)).json()
-  check("7 modèles d'emails listés", tplList.templates?.length === 7, String(tplList.templates?.length))
+  check("9 modèles d'emails listés", tplList.templates?.length === 9, String(tplList.templates?.length))
   const rPut = await page.request.put(`${BASE}/api/admin/email-templates`, {
     data: { key: "results_selected", subject: "Bravo {{nom_scene}} !", body: "Bonjour {{prenom}},\n\n<b>Finaliste</b> édition {{edition}}. Voir {{lien_espace}}" },
   })
@@ -222,6 +222,45 @@ try {
   const app1 = apps.find((a) => a.stage_name === C1.stage)
   const app2 = apps.find((a) => a.stage_name === C2.stage)
   check("2 candidatures visibles en admin", Boolean(app1 && app2))
+
+  // --- Relances des dossiers incomplets (fiche technique manquante, autorisation parentale du mineur C1)
+  const runDossier = async () => (await (await page.request.post(`${BASE}/api/admin/reminders/run`)).json()).dossier
+  const d0 = await runDossier()
+  check("relances : rien juste après l'envoi de la candidature", d0.enabled && d0.incomplete === 2 && d0.sent.regular === 0 && d0.sent.final === 0, JSON.stringify(d0))
+  sql(`UPDATE applications SET created_at = (now() AT TIME ZONE 'UTC') - interval '8 days' WHERE edition=2027`)
+  catcher.messages.length = 0
+  const d1 = await runDossier()
+  check("relances régulières envoyées aux 2 dossiers incomplets", d1.sent.regular === 2 && d1.failed.length === 0, JSON.stringify(d1))
+  const dossierMail = await waitForMail(catcher, (m) => m.to.includes(C1.email) && /dossier est incomplet/.test(m.subject))
+  check(
+    "relance : pièces manquantes listées et mention des dossiers complets",
+    Boolean(dossierMail) && /- la fiche technique/.test(dossierMail.text) && /- l'autorisation parentale \(candidat mineur\)/.test(dossierMail.text) && /seuls les dossiers complets seront pris en compte/.test(dossierMail.text),
+    dossierMail?.text,
+  )
+  const groupMail = await waitForMail(catcher, (m) => m.to.includes(C2.email) && /dossier est incomplet/.test(m.subject))
+  check("relance groupe majeur : seule la fiche technique manque", Boolean(groupMail) && /- la fiche technique/.test(groupMail.text) && !/autorisation parentale/.test(groupMail.text))
+  const d1b = await runDossier()
+  check("relances idempotentes dans la journée", d1b.sent.regular === 0 && d1b.sent.final === 0, JSON.stringify(d1b))
+  const closesBefore = sql(`SELECT to_char(registration_closes_at, 'YYYY-MM-DD HH24:MI:SS.MS') FROM schedule_config`)
+  sql(`UPDATE schedule_config SET registration_closes_at = (now() AT TIME ZONE 'UTC') + interval '2 days'`)
+  sql(`UPDATE applications SET dossier_reminder_sent_at = (now() AT TIME ZONE 'UTC') - interval '3 days' WHERE edition=2027`)
+  catcher.messages.length = 0
+  const d2 = await runDossier()
+  check("dernier rappel renforcé avant la clôture", d2.sent.final === 2 && d2.sent.regular === 0, JSON.stringify(d2))
+  const finalMail = await waitForMail(catcher, (m) => m.to.includes(C1.email) && /Dernier rappel/.test(m.subject))
+  check("email de dernier rappel reçu", Boolean(finalMail) && /seuls les dossiers complets/i.test(finalMail.text), finalMail?.subject)
+  sql(`UPDATE schedule_config SET registration_closes_at = (now() AT TIME ZONE 'UTC') - interval '1 minute'`)
+  sql(`UPDATE applications SET dossier_reminder_sent_at = (now() AT TIME ZONE 'UTC') - interval '20 days' WHERE edition=2027`)
+  const d3 = await runDossier()
+  check("aucune relance après la clôture", d3.sent.regular === 0 && d3.sent.final === 0, JSON.stringify(d3))
+  sql(`UPDATE schedule_config SET registration_closes_at = '${closesBefore}'`)
+  const rBadSettings = await page.request.put(`${BASE}/api/admin/reminders/dossier-settings`, { data: { enabled: true, intervalDays: 1, finalDays: 3 } })
+  check("fréquence de relance trop courte refusée → 400", rBadSettings.status() === 400, String(rBadSettings.status()))
+  const rOff = await page.request.put(`${BASE}/api/admin/reminders/dossier-settings`, { data: { enabled: false, intervalDays: 5, finalDays: 2 } })
+  const off = await rOff.json()
+  check("relances désactivables", rOff.status() === 200 && off.config?.dossier_reminders_enabled === false && off.config?.dossier_reminder_interval_days === 5, JSON.stringify(off))
+  check("relances désactivées : aucun envoi", (await runDossier()).sent.regular === 0)
+  await page.request.put(`${BASE}/api/admin/reminders/dossier-settings`, { data: { enabled: true, intervalDays: 7, finalDays: 3 } })
   const rFinalistPending = await page.request.put(`${BASE}/api/admin/results`, { data: { applicationId: app1.id, isFinalist: true } })
   check("finaliste refusé si non validée → 400", rFinalistPending.status() === 400, String(rFinalistPending.status()))
   catcher.messages.length = 0
