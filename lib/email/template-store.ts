@@ -46,6 +46,8 @@ export function candidateVars(input: {
   auditionDate?: string
   auditionTime?: string
   venue?: string
+  missingDocuments?: string
+  closingDate?: string
 }): TemplateVars {
   return {
     prenom: input.firstName,
@@ -56,6 +58,8 @@ export function candidateVars(input: {
     heure_audition: input.auditionTime ?? "",
     lieu: input.venue ?? "",
     lien_espace: `${getSiteUrl()}/dashboard`,
+    pieces_manquantes: input.missingDocuments ?? "",
+    date_cloture: input.closingDate ?? "",
   }
 }
 

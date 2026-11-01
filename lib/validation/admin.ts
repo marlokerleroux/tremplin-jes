@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { DOSSIER_REMINDER_LIMITS } from "@/lib/dossier-reminders"
 import { emailSchema, hhmmSchema, isoDateSchema, optionalText, uuidSchema } from "./common"
 
 export const assignSlotSchema = z.object({
@@ -72,6 +73,20 @@ export const seasonConfigSchema = z
   })
 
 export type SeasonConfigInput = z.infer<typeof seasonConfigSchema>
+
+export const dossierReminderSettingsSchema = z.object({
+  enabled: z.boolean("Activation invalide"),
+  intervalDays: z.coerce
+    .number("Fréquence invalide")
+    .int("Fréquence invalide")
+    .min(DOSSIER_REMINDER_LIMITS.intervalDays.min, `Fréquence minimale : ${DOSSIER_REMINDER_LIMITS.intervalDays.min} jours`)
+    .max(DOSSIER_REMINDER_LIMITS.intervalDays.max, `Fréquence maximale : ${DOSSIER_REMINDER_LIMITS.intervalDays.max} jours`),
+  finalDays: z.coerce
+    .number("Délai invalide")
+    .int("Délai invalide")
+    .min(DOSSIER_REMINDER_LIMITS.finalDays.min, "Délai invalide")
+    .max(DOSSIER_REMINDER_LIMITS.finalDays.max, `Délai maximal : ${DOSSIER_REMINDER_LIMITS.finalDays.max} jours`),
+})
 
 export const generateSlotsSchema = z
   .object({

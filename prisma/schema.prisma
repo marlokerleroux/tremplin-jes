@@ -63,6 +63,9 @@ model Application {
   // Rappels automatiques envoyés avant l'audition (J-7 et J-1).
   reminder_j7_sent_at      DateTime?
   reminder_j1_sent_at      DateTime?
+  // Relances des dossiers incomplets (fiche technique / autorisations parentales) avant la clôture.
+  dossier_reminder_sent_at DateTime?
+  dossier_reminder_count   Int       @default(0)
   created_at               DateTime  @default(now())
   updated_at               DateTime  @updatedAt
 
@@ -161,20 +164,24 @@ model AuditionTracking {
 
 /// Configuration de la saison en cours (une seule ligne).
 model ScheduleConfig {
-  id                     String    @id @default(uuid()) @db.Uuid
+  id                             String    @id @default(uuid()) @db.Uuid
   // Édition en cours (année de la finale), ex. 2027.
-  edition                Int       @default(2026)
+  edition                        Int       @default(2026)
   // Fenêtre d'inscription. Null = pas de borne.
-  registration_opens_at  DateTime?
-  registration_closes_at DateTime?
+  registration_opens_at          DateTime?
+  registration_closes_at         DateTime?
   // Dates d'audition ("YYYY-MM-DD"), utilisées pour les créneaux et le choix de date préférée.
-  audition_dates         String[]  @default([])
+  audition_dates                 String[]  @default([])
   // Date de référence pour le calcul de l'âge ("YYYY-MM-DD"). Null = dernière date d'audition.
-  age_reference_date     String?
-  is_validated           Boolean   @default(false)
-  venue                  String?   @default("Espace Léo Ferré, Brest")
-  created_at             DateTime  @default(now())
-  updated_at             DateTime  @updatedAt
+  age_reference_date             String?
+  is_validated                   Boolean   @default(false)
+  venue                          String?   @default("Espace Léo Ferré, Brest")
+  // Relances des dossiers incomplets : activation, fréquence (jours) et fenêtre de relance renforcée avant la clôture (jours, 0 = aucune).
+  dossier_reminders_enabled      Boolean   @default(true)
+  dossier_reminder_interval_days Int       @default(7)
+  dossier_reminder_final_days    Int       @default(3)
+  created_at                     DateTime  @default(now())
+  updated_at                     DateTime  @updatedAt
 
   @@map("schedule_config")
 }

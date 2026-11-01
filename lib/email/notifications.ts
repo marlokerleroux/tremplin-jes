@@ -14,6 +14,7 @@ import {
 import { candidateVars, renderEmail } from "./template-store"
 import { buildAuditionIcs } from "./ics"
 import type { ReminderKind } from "@/lib/reminders"
+import type { DossierReminderKind } from "@/lib/dossier-reminders"
 
 export type EmailResult = { success: boolean; error?: string }
 
@@ -142,7 +143,19 @@ export function sendReminderEmail(kind: ReminderKind, input: AuditionEmailInput)
   return deliver(input.email, () => renderEmail(kind === "j7" ? "reminder_j7" : "reminder_j1", auditionVars(input)), `reminder ${kind}`)
 }
 
-// 5 ter. Résultats des auditions (modèles modifiables)
+// 5 ter. Relances des dossiers incomplets (modèles modifiables)
+export function sendDossierReminderEmail(
+  kind: DossierReminderKind,
+  input: CandidateEmailInput & { missingDocuments: string; closingDate: string },
+) {
+  return deliver(
+    input.email,
+    () => renderEmail(kind === "final" ? "dossier_incomplete_final" : "dossier_incomplete", candidateVars(input)),
+    `dossier reminder ${kind}`,
+  )
+}
+
+// 5 quater. Résultats des auditions (modèles modifiables)
 export function sendResultEmail(selected: boolean, candidate: CandidateEmailInput) {
   return deliver(
     candidate.email,

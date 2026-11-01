@@ -57,6 +57,8 @@ export interface AdminApplicationDTO {
   result_sent_at: string | null
   reminder_j7_sent_at: string | null
   reminder_j1_sent_at: string | null
+  dossier_reminder_sent_at: string | null
+  dossier_reminder_count: number
   created_at: string
   profile: ProfileDTO | null
   technical_sheet: { id: string; pdf_url: string | null } | null
@@ -107,6 +109,7 @@ export function toAdminApplicationDTO(app: ApplicationWithRelations): AdminAppli
     result_sent_at: app.result_sent_at?.toISOString() ?? null,
     reminder_j7_sent_at: app.reminder_j7_sent_at?.toISOString() ?? null,
     reminder_j1_sent_at: app.reminder_j1_sent_at?.toISOString() ?? null,
+    dossier_reminder_sent_at: app.dossier_reminder_sent_at?.toISOString() ?? null,
     profile: profile
       ? {
           first_name: profile.first_name,

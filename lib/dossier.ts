@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma"
 import { normalizeGroupMembers } from "@/lib/admin-data"
 import { getSeasonConfig } from "@/lib/season-config"
-import { getAgeReferenceDate, isMinorAt } from "@/lib/season"
+import { getAgeReferenceDate } from "@/lib/season"
+import { getMissingDocuments, isComplete } from "@/lib/dossier-reminders"
 import { notifyAdmins } from "@/lib/email/notifications"
 
 /**
@@ -20,11 +21,15 @@ export async function isDossierComplete(applicationId: string): Promise<boolean>
     }),
     getSeasonConfig(),
   ])
-  if (!application || !application.technical_sheet?.pdf_url) return false
-  const referenceDate = getAgeReferenceDate(config)
-  const members = normalizeGroupMembers(application.group_members)
-  const provided = new Set(application.parental_authorizations.map((a) => a.member_index))
-  return members.every((member, index) => !member.birthDate || !isMinorAt(member.birthDate, referenceDate) || provided.has(index))
+  if (!application) return false
+  return isComplete(
+    getMissingDocuments({
+      members: normalizeGroupMembers(application.group_members),
+      hasTechnicalSheet: Boolean(application.technical_sheet?.pdf_url),
+      providedAuthorizations: application.parental_authorizations.map((a) => a.member_index),
+      ageReferenceDate: getAgeReferenceDate(config),
+    }),
+  )
 }
 
 /**
