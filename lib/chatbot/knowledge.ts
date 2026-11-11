@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { communicationRpc } from "@/lib/communication/store"
 
 export interface KnowledgeIndex {
   chunks: { id: string; url: string; title: string; text: string; embedding: string | null }[]
@@ -9,6 +10,7 @@ export interface KnowledgeIndex {
 }
 
 const cache = new Map<string, { expires: number; index: KnowledgeIndex }>()
+export function clearKnowledgeCache() { cache.clear() }
 
 /** Read the existing private RAG through its server-only RPC; never expose chunks. */
 export async function readKnowledge(terms: string[] = [], signal?: AbortSignal): Promise<KnowledgeIndex> {
@@ -35,6 +37,12 @@ export async function readKnowledge(terms: string[] = [], signal?: AbortSignal):
     index = rows[0]?.value
   }
   if (!index?.chunks?.length || !index.stats || !Array.isArray(index.lexical)) throw new Error("EMPTY_KNOWLEDGE")
+  try {
+    const manual = await communicationRpc<(KnowledgeIndex["chunks"][number] & { lexical: boolean; updatedAt: string; embedding_model: string })[]>("manuals", { query })
+    // A model change must not hide a validated fact: incompatible vectors still use lexical retrieval.
+    const additions = manual.map(c => ({ ...c, embedding: c.embedding_model === index.embeddingModel ? c.embedding : null }))
+    index = { ...index, chunks: [...index.chunks, ...additions], lexical: [...additions.filter(c => c.lexical).map(c => ({ id: c.id })), ...index.lexical] }
+  } catch { /* The existing corpus remains available while the additive dashboard migration is pending. */ }
   if (cache.size >= 30) cache.clear()
   cache.set(query, { expires: Date.now() + 60000, index })
   return index

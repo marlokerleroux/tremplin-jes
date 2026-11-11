@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-const mocks = vi.hoisted(() => ({ reserve: vi.fn(), knowledge: vi.fn(), provider: vi.fn(), embed: vi.fn() }))
+const mocks = vi.hoisted(() => ({ reserve: vi.fn(), knowledge: vi.fn(), provider: vi.fn(), embed: vi.fn(), record: vi.fn() }))
+vi.mock("@/lib/communication/log", () => ({ recordQuestion: mocks.record }))
 vi.mock("./quota", () => ({ reserveChatbotRequest: mocks.reserve }))
 vi.mock("./knowledge", () => ({ readKnowledge: mocks.knowledge }))
 vi.mock("../../chatbot/server/provider.mjs", () => ({ openrouter: mocks.provider, embed: mocks.embed }))
@@ -17,6 +18,7 @@ function chat(messages: unknown = [{ role: "user", content: "Quand sont les audi
 beforeEach(() => {
   vi.stubEnv("OPENROUTER_API_KEY", "test-key")
   mocks.reserve.mockReset().mockResolvedValue(true)
+  mocks.record.mockReset().mockResolvedValue(undefined)
   mocks.provider.mockReset().mockResolvedValue({ choices: [{ message: { content: JSON.stringify({ answer: "**Les auditions** Le 23 et le 24 janvier 2027.", sourceIds: ["S1"] }) } }] })
   mocks.knowledge.mockReset().mockResolvedValue({
     chunks: [{ id: "homepage", url: `${site}/`, title: "Édition 2027", text: "Auditions les 23 et 24 janvier 2027.", embedding: null }],
@@ -31,6 +33,7 @@ describe("integrated chatbot API", () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({ answer: "**Les auditions**\n\nLe 23 et le 24 janvier 2027.", sources: [{ url: `${site}/`, title: "Édition 2027" }] })
     expect(mocks.knowledge).toHaveBeenCalled()
+    expect(mocks.record).toHaveBeenCalledWith("Quand sont les auditions ?", expect.objectContaining({answer: expect.any(String)}), undefined)
     expect(mocks.provider.mock.calls[0][1].messages[0].content).toContain("23 et 24 janvier 2027")
     expect(response.headers.get("cache-control")).toBe("no-store")
   })
