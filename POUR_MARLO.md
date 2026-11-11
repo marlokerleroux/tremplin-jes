@@ -112,7 +112,7 @@ Vérifications avant fusion :
 
 - Le bon mot de passe permet d’entrer ; un mauvais mot de passe est refusé.
 - Sans session, `/api/communication/data` renvoie un refus d’accès, sans historique.
-- Une question envoyée au chatbot de cette même prévisualisation apparaît dans l’historique avec sa date et sa réponse. Les questions anciennes ne seront pas récupérées rétroactivement.
+- Ouvre `/chatbot/index.html` sur cette même URL de prévisualisation et envoie une question : elle doit apparaître dans l’historique avec sa date et sa réponse. Les questions anciennes ne seront pas récupérées rétroactivement.
 - Une réponse validée dans l’admin est utilisée par le chatbot, avec une propagation du cache pouvant prendre jusqu’à une minute. Utilise une vraie information approuvée, pas un fait fictif dans le RAG partagé.
 - Un brouillon peut être généré, modifié et sauvegardé ; rien n’est publié automatiquement sur les réseaux.
 - La déconnexion coupe l’accès aux données. Le site vitrine et l’espace candidat fonctionnent toujours.
