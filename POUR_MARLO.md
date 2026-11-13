@@ -123,7 +123,7 @@ En cas de problème après mise en ligne, reviens au précédent déploiement Ve
 
 ## Suivi à compléter par Marlo
 
-- Reprise par Marlo : **à compléter avec la date du nouveau commit**.
+- Reprise par Marlo : **13 novembre 2026, nouveau commit depuis le compte GitHub `marlokerleroux`**.
 - Migration Supabase exécutée et contrôlée : **à faire**.
 - Variables Preview et Production configurées : **à faire**.
 - Parcours validé en prévisualisation : **à faire**.
