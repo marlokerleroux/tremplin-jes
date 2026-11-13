@@ -24,6 +24,11 @@ export async function middleware(request: NextRequest) {
 
   // Vitrine hostname: rewrite root to /vitrine, block app routes
   if (isVitrineHost) {
+    if (pathname === "/admin") {
+      const url = request.nextUrl.clone()
+      url.pathname = "/communication"
+      return NextResponse.rewrite(url)
+    }
     if (pathname === "/") {
       const url = request.nextUrl.clone()
       url.pathname = "/vitrine"

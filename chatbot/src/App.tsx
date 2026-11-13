@@ -34,6 +34,7 @@ function Chat() {
   const [input,setInput]=useState('');const [busy,setBusy]=useState(false);const [error,setError]=useState('');
   const [info,setInfo]=useState(false);const [sourceState,setSourceState]=useState<{documents:number;indexedAt:string}|null>(null);
   const scrollRef=useRef<HTMLDivElement>(null);const inputRef=useRef<HTMLTextAreaElement>(null);const launchRef=useRef<HTMLButtonElement>(null);
+  const conversationId=useRef(crypto.randomUUID());
   const requestRef=useRef<AbortController|null>(null);const sendingRef=useRef(false);
   const voice=useVoiceRecorder(text=>{setInput(text);setTimeout(()=>inputRef.current?.focus(),0);});
   const hasText=!!input.trim();
@@ -53,7 +54,7 @@ function Chat() {
   useEffect(()=>{const node=inputRef.current;if(node){node.style.height='auto';node.style.height=`${Math.min(node.scrollHeight,96)}px`;}},[input,voice.state]);
   function close(){voice.cancel();setOpen(false);setInfo(false);setTimeout(()=>launchRef.current?.focus(),30);}
   function toggle(){if(open)close();else{setOpen(true);setTimeout(()=>inputRef.current?.focus(),150);}}
-  function reset(){if(busy)return;voice.cancel();setMessages([]);setError('');setInput('');setInfo(false);inputRef.current?.focus();}
+  function reset(){if(busy)return;conversationId.current=crypto.randomUUID();voice.cancel();setMessages([]);setError('');setInput('');setInfo(false);inputRef.current?.focus();}
   async function submit(question:string,retry=false) {
     const text=question.trim();if(!text||text.length>1500||sendingRef.current)return;
     voice.cancel();
@@ -62,7 +63,7 @@ function Chat() {
     setMessages(next);setInput('');if(inputRef.current)inputRef.current.style.height='auto';
     const controller=new AbortController();requestRef.current=controller;
     try {
-      const response=await fetch(`${API_BASE}/chat`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:next.slice(-12).map(({role,content})=>({role,content}))}),signal:AbortSignal.any([controller.signal,AbortSignal.timeout(85000)])});
+      const response=await fetch(`${API_BASE}/chat`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({conversationId:conversationId.current,messages:next.slice(-12).map(({role,content})=>({role,content}))}),signal:AbortSignal.any([controller.signal,AbortSignal.timeout(85000)])});
       const data=await response.json();if(!response.ok)throw new Error(data.error||'La connexion a été interrompue. Réessaie dans un instant.');
       if(typeof data.answer!=='string')throw new Error('La réponse n’a pas pu être lue. Réessaie dans un instant.');
       setMessages([...next,{id:crypto.randomUUID(),role:'assistant',content:data.answer,sources:data.sources}]);
@@ -75,7 +76,7 @@ function Chat() {
       <div className="chat-scroll" ref={scrollRef}>
         {messages.length===0?<div className="welcome"><div className="welcome-title"><h2>Ta scène.<br/>Tes questions.</h2><span className="hello-sticker">À TOI<br/>DE JOUER <ArrowUpRight size={19}/></span></div><p className="welcome-copy">Salut ! Une envie de monter sur scène ?<br/>Je t’aide à faire le premier pas.</p><div className="prompt-list"><p>On commence par quoi ?</p>{prompts.map(({icon:Icon,label,question},i)=><button key={label} onClick={()=>submit(question)} className={`prompt prompt-${i}`}><span className="prompt-icon"><Icon size={19} strokeWidth={1.8}/></span><span>{label}</span><ArrowUpRight size={16}/></button>)}</div><div className="welcome-foot"><Heart size={14}/><span>Tous les styles. Toutes les questions.</span></div></div>:<><div className="conversation-date"><span/>C’est à toi<span/></div><div role="log" aria-label="Messages" aria-live="polite" aria-relevant="additions">{messages.map(message=>message.role==='user'?<div className="user-message" key={message.id}><span className="sr-only">Toi : </span>{message.content}</div>:<AssistantMessage key={message.id} message={message}/>)}</div>{busy&&<div className="typing" role="status"><Mark small/><div><span>Je regarde dans les coulisses</span><span className="typing-dots"><i/><i/><i/></span></div></div>}{error&&<div className="chat-error" role="alert"><p>{error}</p><button onClick={()=>submit(messages.at(-1)?.content||'',true)}><RotateCcw size={14}/>Réessayer</button></div>}{!busy&&!error&&messages.at(-1)?.role==='assistant'&&<div className="followups"><button onClick={()=>submit('Quelles sont les dates importantes de l’édition 2027 ?')}>Les dates à retenir<ArrowRight size={13}/></button><button onClick={()=>submit('Comment contacter l’association ?')}>Contacter l’équipe<ArrowRight size={13}/></button></div>}</>}
       </div>
-      {info&&<aside className="info-panel" aria-label="À propos de l’assistant"><button className="info-close" onClick={()=>setInfo(false)} aria-label="Fermer les informations"><X size={15}/></button><strong>Un coup de main, sources à l’appui.</strong><p>Je suis un assistant IA : mes réponses s’appuient sur les pages publiques du Tremplin et les documents fournis par l’association. Elles peuvent contenir des erreurs.</p>{sourceState?.indexedAt&&<p>{sourceState.documents} sources documentaires · Mise à jour le {new Date(sourceState.indexedAt).toLocaleDateString('fr-FR')}.</p>}<p>Évite les informations personnelles. Tes messages sont transmis à OpenRouter pour générer les réponses. Si tu utilises le micro, ton vocal y est aussi envoyé pour être transcrit ; il n’est pas enregistré sur notre serveur. L’assistant ne conserve pas les conversations après rechargement.</p><a href={`${SITE}/privacy`} target="_blank" rel="noopener noreferrer">Confidentialité du site<ArrowUpRight size={12}/></a></aside>}
+      {info&&<aside className="info-panel" aria-label="À propos de l’assistant"><button className="info-close" onClick={()=>setInfo(false)} aria-label="Fermer les informations"><X size={15}/></button><strong>Un coup de main, sources à l’appui.</strong><p>Je suis un assistant IA : mes réponses s’appuient sur les pages publiques du Tremplin et les documents fournis par l’association. Elles peuvent contenir des erreurs.</p>{sourceState?.indexedAt&&<p>{sourceState.documents} sources documentaires · Mise à jour le {new Date(sourceState.indexedAt).toLocaleDateString('fr-FR')}.</p>}<p>Évite les informations personnelles. Tes messages sont transmis à OpenRouter pour générer les réponses. Si tu utilises le micro, ton vocal y est aussi envoyé pour être transcrit ; il n’est pas enregistré sur notre serveur. Les questions et les réponses sont conservées dans un espace privé de l’association pour améliorer l’assistant et préparer sa communication. Les adresses e-mail et numéros de téléphone français détectés sont masqués avant cet enregistrement. La discussion affichée ici disparaît au rechargement.</p><a href={`${SITE}/privacy`} target="_blank" rel="noopener noreferrer">Confidentialité du site<ArrowUpRight size={12}/></a></aside>}
       <footer className="chat-footer">
         <form className={voice.state==='recording'?'is-recording':''} onSubmit={e=>{e.preventDefault();if(busy)return;if(voice.state==='recording')voice.stop();else if(!voice.active){if(hasText)submit(input);else void voice.start();}}}>
           <label htmlFor="chat-input" className="sr-only">Ta question sur le Tremplin</label>
@@ -86,7 +87,7 @@ function Chat() {
         </form>
         <p className="voice-hint" role="status" aria-live="polite">{voiceHint}</p>
         {voice.error&&<p className="voice-error" role="alert">{voice.error}</p>}
-        <div className="footer-note"><span>Assistant IA <i/> Sources officielles</span><button aria-label="Informations et confidentialité de l’assistant" aria-expanded={info} onClick={()=>setInfo(!info)}><Info size={14}/></button></div>{input.length>1350&&<span className="character-count">{input.length}/1 500</span>}
+        <div className="footer-note"><span>Assistant IA <i/> Questions conservées pour l’équipe</span><button aria-label="Informations et confidentialité de l’assistant" aria-expanded={info} onClick={()=>setInfo(!info)}><Info size={14}/></button></div>{input.length>1350&&<span className="character-count">{input.length}/1 500</span>}
       </footer>
     </section>}
     <button ref={launchRef} className={`launcher ${open?'launcher-open':''}`} onClick={toggle} aria-label={open?'Fermer le chatbot':'Ouvrir le chatbot En coulisses'} aria-expanded={open}>{open?<><span>On reste dans le coin.</span><span className="launcher-close"><ChevronDown size={23}/></span></>:<><Mark small/><span>On en parle ?<small>Entre dans les coulisses</small></span><span className="launcher-notification" aria-hidden="true"/></>}</button>
